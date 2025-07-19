@@ -28,7 +28,6 @@
 - [📁 Project Structure](#-project-structure)
 - [🔧 Configuration](#-configuration)
 - [🚢 Deployment](#-deployment)
-- [📝 Testing](#-testing)
 - [🤝 Contributing](#-contributing)
 - [📄 License](#-license)
 
@@ -319,13 +318,6 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 curl http://localhost:8000/health
 ```
 
-### **☁️ Cloud Deployment**
-The application can be deployed on:
-- **Heroku** - Platform as a Service
-- **Railway** - Simple deployment platform
-- **DigitalOcean App Platform** - Platform as a Service
-- **AWS EC2** - Virtual servers
-- **Google Cloud Compute** - Virtual machines
 
 ### **🔍 Monitoring & Logging**
 - Structured JSON logging with custom formatters
