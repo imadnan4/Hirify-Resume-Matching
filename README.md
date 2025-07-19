@@ -335,27 +335,6 @@ The application can be deployed on:
 
 ---
 
-## 📝 Testing
-
-### **🧪 Backend Tests**
-```bash
-cd backend
-pytest --cov=app tests/
-```
-
-### **🎭 Frontend Tests**
-```bash
-cd frontend
-npm test -- --coverage
-```
-
-### **🔗 Integration Tests**
-```bash
-# Run full integration test suite
-pytest tests/integration/ --verbose
-```
-
----
 
 ## 🤝 Contributing
 
