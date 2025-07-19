@@ -360,7 +360,7 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 - **📚 Documentation**: [Full Project Documentation](./project.md)
 - **🐛 Bug Reports**: [GitHub Issues](https://github.com/yourusername/hirify/issues)
 - **💡 Feature Requests**: [GitHub Discussions](https://github.com/yourusername/hirify/discussions)
-- **📧 Contact**: your-email@domain.com
+- **📧 Contact**: [x](https://x.com/adnankhaan_ai)
 
 ---
 
