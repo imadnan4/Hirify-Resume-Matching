@@ -425,13 +425,4 @@ Made with ❤️ by the Hirify team
 
 For support, please open an issue in the GitHub repository or contact the development team.
 
-## 📋 Roadmap
 
-- [ ] Enhanced NLP models with custom training
-- [ ] Multi-language support
-- [ ] Integration with more job boards
-- [ ] Advanced analytics and reporting
-- [ ] Mobile application
-- [ ] API rate limiting and authentication
-- [ ] Real-time notifications
-- [ ] Batch processing optimization
