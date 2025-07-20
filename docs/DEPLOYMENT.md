@@ -52,8 +52,8 @@ sudo apt-get install git curl -y
 ### 1. Clone Repository
 
 ```bash
-git clone <repository-url>
-cd resume-parser
+git clone [<repository-url>](https://github.com/imadnan4/Hirify)
+cd Hirify
 ```
 
 ### 2. Environment Configuration
@@ -168,12 +168,12 @@ docker-compose -f docker-compose.prod.yml ps
 Expected output:
 ```
 NAME                           SERVICE         STATUS    PORTS
-resume-parser-backend          backend         running   0.0.0.0:8000->8000/tcp
-resume-parser-celery-worker    celery-worker   running   
-resume-parser-frontend         frontend        running   0.0.0.0:3000->3000/tcp
-resume-parser-nginx            nginx           running   0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp
-resume-parser-postgres         postgres        running   5432/tcp
-resume-parser-redis            redis           running   6379/tcp
+hirify-backend          backend         running   0.0.0.0:8000->8000/tcp
+hirify-celery-worker    celery-worker   running   
+hirify-frontend         frontend        running   0.0.0.0:3000->3000/tcp
+hirify-nginx            nginx           running   0.0.0.0:80->80/tcp, 0.0.0.0:443->443/tcp
+hirify-postgres         postgres        running   5432/tcp
+hirify-redis            redis           running   6379/tcp
 ```
 
 ## 🔐 SSL Configuration
@@ -399,7 +399,7 @@ docker-compose -f docker-compose.prod.yml exec postgres psql -U postgres -d resu
 
 ```bash
 # Setup logrotate
-sudo cat > /etc/logrotate.d/resume-parser << EOF
+sudo cat > /etc/logrotate.d/hirify << EOF
 /path/to/project/backend/logs/*.log {
     daily
     rotate 30
@@ -417,7 +417,7 @@ EOF
 
 ```bash
 # Scan for vulnerabilities
-docker scan resume-parser_backend
+docker scan hirify_backend
 
 # Update base images
 docker-compose -f docker-compose.prod.yml build --no-cache --pull
