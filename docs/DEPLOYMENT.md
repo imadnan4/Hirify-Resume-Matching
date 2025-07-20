@@ -104,11 +104,6 @@ MAX_FILE_SIZE=104857600  # 100MB
 GRAFANA_PASSWORD=your_grafana_password
 PROMETHEUS_RETENTION=15d
 
-# Email Configuration (Optional)
-SMTP_SERVER=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=your_email@gmail.com
-SMTP_PASSWORD=your_app_password
 ```
 
 ### 3. Directory Structure
