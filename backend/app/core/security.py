@@ -12,7 +12,9 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 import ipaddress
 from pathlib import Path
-import magic
+
+# No longer using python-magic to avoid C-binding issues
+
 from pydantic import BaseModel, Field, validator
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
@@ -219,12 +221,22 @@ class SecurityValidator:
             issues.append(f"File extension '{file_ext}' is not allowed")
         
         # Check MIME type
+        mime_type = 'unknown'
         try:
-            mime_type = magic.from_buffer(file_content, mime=True)
-            if mime_type not in SecurityConfig.ALLOWED_MIME_TYPES:
+            if HAS_MAGIC and magic:
+                mime_type = magic.from_buffer(file_content, mime=True)
+            else:
+                # Fallback to mimetypes library
+                mime_type, _ = mimetypes.guess_type(filename)
+                if mime_type is None:
+                    mime_type = 'unknown'
+            
+            if mime_type not in SecurityConfig.ALLOWED_MIME_TYPES and mime_type != 'unknown':
                 issues.append(f"File type '{mime_type}' is not allowed")
         except Exception:
-            issues.append("Could not determine file type")
+            # Use extension-based validation as fallback
+            mime_type = 'unknown'
+            app_logger.log_error("Could not determine file MIME type, using extension validation only")
         
         # Check for embedded executables or scripts
         if SecurityValidator._contains_malicious_content(file_content):

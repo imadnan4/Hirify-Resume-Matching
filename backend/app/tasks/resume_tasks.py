@@ -6,7 +6,7 @@ import traceback
 from datetime import datetime
 
 from app.services.resume_parser import ResumeParser
-from app.services.document_parser import DocumentParser
+from app.services.document_parser import DocumentParserService
 from app.core.database import SessionLocal
 from app.models.resume import Resume
 from app.models.candidate import Candidate
@@ -38,31 +38,30 @@ def process_resume(self, resume_id: int) -> Dict[str, Any]:
             db.commit()
             
             # Initialize parsers
-            document_parser = DocumentParser()
+            document_parser = DocumentParserService()
             resume_parser = ResumeParser()
             
             # Step 1: Extract text from document
             self.update_state(state='PROGRESS', meta={'step': 'extracting_text', 'progress': 20})
             
-            if resume.file_type.lower() == 'pdf':
-                extracted_text = document_parser.extract_text_from_pdf(resume.file_path)
-            elif resume.file_type.lower() in ['doc', 'docx']:
-                extracted_text = document_parser.extract_text_from_docx(resume.file_path)
-            else:
-                raise ValueError(f"Unsupported file type: {resume.file_type}")
+            # Use the async parse_document method
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                parse_result = loop.run_until_complete(
+                    document_parser.parse_document(resume.file_path, resume.filename)
+                )
+                extracted_text = parse_result.get('extraction', {}).get('text', '')
+                if not extracted_text:
+                    raise ValueError("No text could be extracted from the document")
+            finally:
+                loop.close()
             
             # Step 2: Parse resume data
             self.update_state(state='PROGRESS', meta={'step': 'parsing_data', 'progress': 50})
             
-            # Run async parsing in sync context
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                parsed_resume = loop.run_until_complete(
-                    resume_parser.parse_resume(extracted_text)
-                )
-            finally:
-                loop.close()
+            # Parse resume data (resume_parser.parse_resume expects file path, not text)
+            parsed_resume = resume_parser.parse_resume(resume.file_path)
             
             # Step 3: Update database
             self.update_state(state='PROGRESS', meta={'step': 'updating_database', 'progress': 80})

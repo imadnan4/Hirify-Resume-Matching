@@ -14,6 +14,7 @@ class ContactInfo:
     email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
+    location: Optional[str] = None
     linkedin: Optional[str] = None
     github: Optional[str] = None
     website: Optional[str] = None
@@ -84,12 +85,22 @@ class ResumeParser:
     def __init__(self):
         self.text_preprocessor = TextPreprocessor()
         self.skills_extractor = SkillsExtractor()
-        try:
-            self.nlp = spacy.load("en_core_web_sm")
-        except OSError:
-            self.nlp = None
-            print("Warning: spaCy model not found. Some features may be limited.")
+        self.nlp = None  # Don't load spaCy model during init - use lazy loading
+        self.__post_init__()
         
+    def _load_spacy_model(self):
+        """Load spaCy model on demand"""
+        if self.nlp is None:
+            try:
+                self.nlp = spacy.load("en_core_web_sm")
+                print("Successfully loaded spaCy model 'en_core_web_sm'")
+            except OSError:
+                print("Warning: spaCy model not found. Some features may be limited.")
+                print("Please run: python -m spacy download en_core_web_sm")
+                self.nlp = False
+    
+    def __post_init__(self):
+        """Initialize section patterns"""
         # Section patterns for identification
         self.section_patterns = {
             'contact': [
@@ -165,41 +176,45 @@ class ResumeParser:
         """Identify different sections in resume text"""
         lines = text.split('\n')
         sections = {}
-        current_section = None
-        current_content = []
         
-        for line in lines:
-            line = line.strip()
-            if not line:
-                continue
-                
-            # Check if this line is a section header
-            section_found = None
-            for section_type, patterns in self.section_patterns.items():
-                for pattern in patterns:
-                    if re.search(pattern, line, re.IGNORECASE):
-                        section_found = section_type
-                        break
-                if section_found:
-                    break
+        # Define exact section headers and their mappings
+        section_headers = {
+            'PROFESSIONAL SUMMARY': 'summary',
+            'TECHNICAL SKILLS': 'skills', 
+            'PROFESSIONAL EXPERIENCE': 'experience',
+            'KEY PROJECTS': 'projects',
+            'EDUCATION CERTIFICATIONS': 'education',  # Treat as single education section
+            'LANGUAGES': 'languages'
+        }
+        
+        section_indices = {}
+        
+        # Find exact section header matches
+        for i, line in enumerate(lines):
+            line_clean = line.strip()
+            if line_clean in section_headers:
+                header_mapping = section_headers[line_clean]
+                if isinstance(header_mapping, list):
+                    # Combined section - assign same index to both
+                    for section_name in header_mapping:
+                        section_indices[section_name] = i
+                else:
+                    section_indices[header_mapping] = i
+        
+        # Sort sections by their appearance
+        sorted_sections = sorted(section_indices.items(), key=lambda item: item[1])
+        
+        # Extract content for each section
+        for i in range(len(sorted_sections)):
+            section_name, start_index = sorted_sections[i]
+            end_index = sorted_sections[i+1][1] if i + 1 < len(sorted_sections) else len(lines)
             
-            if section_found:
-                # Save previous section
-                if current_section and current_content:
-                    sections[current_section] = current_content
-                
-                # Start new section
-                current_section = section_found
-                current_content = []
-            else:
-                # Add to current section
-                if current_section:
-                    current_content.append(line)
-        
-        # Save the last section
-        if current_section and current_content:
-            sections[current_section] = current_content
-        
+            # Get all content between this section and the next
+            content_lines = [lines[j].strip() for j in range(start_index + 1, end_index) if lines[j].strip()]
+            
+            # Assign all content lines to the section
+            sections[section_name] = content_lines
+            
         return sections
     
     def extract_contact_info(self, text: str) -> ContactInfo:
@@ -241,6 +256,7 @@ class ResumeParser:
                 contact.website = websites[0]
         
         # Extract name using NER
+        self._load_spacy_model()
         if self.nlp:
             doc = self.nlp(text[:500])  # Check first 500 chars for name
             for ent in doc.ents:
@@ -259,65 +275,115 @@ class ResumeParser:
                         contact.full_name = line
                         break
         
+        # Extract location using NER and patterns
+        self._extract_location(text, contact)
+        
         return contact
+    
+    def _extract_location(self, text: str, contact: ContactInfo) -> None:
+        """Extract location information from resume text"""
+        # Use spaCy NER to find locations
+        self._load_spacy_model()
+        if self.nlp:
+            doc = self.nlp(text[:1000])  # Check first 1000 chars for location
+            locations = []
+            for ent in doc.ents:
+                if ent.label_ in ["GPE", "LOC"]:  # GPE = Geopolitical entity, LOC = Location
+                    locations.append(ent.text)
+            
+            if locations:
+                # Take the first location found
+                contact.location = locations[0]
+                return
+        
+        # Fallback: pattern-based location extraction
+        # Look for common location patterns in first few lines
+        lines = text.split('\n')
+        for line in lines[:10]:  # Check first 10 lines
+            line = line.strip()
+            
+            # Pattern: City, State ZIP
+            location_pattern = r'([A-Za-z\s]+),\s*([A-Z]{2})\s*(\d{5})?'
+            location_match = re.search(location_pattern, line)
+            if location_match:
+                city = location_match.group(1).strip()
+                state = location_match.group(2)
+                if len(city.split()) <= 3:  # Reasonable city name length
+                    contact.location = f"{city}, {state}"
+                    return
+            
+            # Pattern: City, State (without ZIP)
+            location_pattern2 = r'([A-Za-z\s]+),\s*([A-Za-z\s]+)$'
+            location_match2 = re.search(location_pattern2, line)
+            if location_match2:
+                city = location_match2.group(1).strip()
+                state = location_match2.group(2).strip()
+                # Check if it looks like a reasonable location
+                if (len(city.split()) <= 3 and len(state.split()) <= 2 and 
+                    not any(char.isdigit() for char in line) and '@' not in line):
+                    contact.location = f"{city}, {state}"
+                    return
     
     def extract_work_experience(self, text_lines: List[str]) -> List[WorkExperience]:
         """Extract work experience from text lines"""
         experiences = []
         current_experience = None
         
-        for line in text_lines:
-            line = line.strip()
+        i = 0
+        while i < len(text_lines):
+            line = text_lines[i].strip()
             if not line:
+                i += 1
                 continue
-            
-            # Check for job title patterns
-            job_title_indicators = ['developer', 'engineer', 'manager', 'analyst', 'specialist', 
-                                  'coordinator', 'consultant', 'director', 'lead', 'senior', 
-                                  'junior', 'intern', 'associate']
-            
-            if any(indicator in line.lower() for indicator in job_title_indicators):
-                # Save previous experience
+
+            # Look for job title (first non-bullet line)
+            if not line.startswith('•') and not line.startswith('-') and not line.startswith('*'):
+                # If we have a previous experience, save it
                 if current_experience:
                     experiences.append(current_experience)
                 
                 # Start new experience
-                current_experience = WorkExperience()
-                current_experience.title = line
+                current_experience = WorkExperience(title=line)
                 
-                # Try to extract company name from the same line or next line
-                if '|' in line:
-                    parts = line.split('|')
-                    if len(parts) >= 2:
-                        current_experience.title = parts[0].strip()
-                        current_experience.company = parts[1].strip()
-            
-            # Check for date patterns
-            date_pattern = r'(\d{1,2}/\d{1,2}/\d{2,4}|\d{4}[-/]\d{1,2}[-/]\d{1,2}|\w+\s+\d{4})'
-            if re.search(date_pattern, line):
+                # Check if next line has company/location/date info
+                if i + 1 < len(text_lines):
+                    next_line = text_lines[i + 1].strip()
+                    if '|' in next_line:
+                        # Parse company | location | date format
+                        parts = [p.strip() for p in next_line.split('|')]
+                        if len(parts) >= 1:
+                            current_experience.company = parts[0]
+                        if len(parts) >= 2:
+                            current_experience.location = parts[1]
+                        if len(parts) >= 3:
+                            # Parse date range
+                            date_part = parts[2]
+                            date_pattern = re.compile(r'(\w+\s*-?\s*\w*\s+\d{4})', re.IGNORECASE)
+                            dates = date_pattern.findall(date_part)
+                            if len(dates) >= 1:
+                                current_experience.start_date = dates[0]
+                            if len(dates) >= 2:
+                                current_experience.end_date = dates[1]
+                            elif len(dates) == 1 and '-' in date_part:
+                                # Handle "August - September 2024" format
+                                date_range_pattern = re.compile(r'(\w+)\s*-\s*(\w+\s+\d{4})', re.IGNORECASE)
+                                date_match = date_range_pattern.search(date_part)
+                                if date_match:
+                                    month_start = date_match.group(1)
+                                    month_end_year = date_match.group(2)
+                                    year = re.search(r'\d{4}', month_end_year).group()
+                                    current_experience.start_date = f"{month_start} {year}"
+                                    current_experience.end_date = month_end_year
+                        i += 1  # Skip the company/location/date line
+                
+            # Add bullet points to description
+            elif line.startswith('•') or line.startswith('-') or line.startswith('*'):
                 if current_experience:
-                    # Extract date range
-                    date_range_pattern = r'(\w+\s+\d{4}|\d{4})\s*[-–—]\s*(\w+\s+\d{4}|\d{4}|present|current)'
-                    date_match = re.search(date_range_pattern, line, re.IGNORECASE)
-                    if date_match:
-                        current_experience.start_date = date_match.group(1)
-                        current_experience.end_date = date_match.group(2)
-                        current_experience.is_current = 'present' in date_match.group(2).lower() or 'current' in date_match.group(2).lower()
+                    if not current_experience.description:
+                        current_experience.description = ''
+                    current_experience.description += line + '\n'
             
-            # Check for company names (if not already extracted)
-            if current_experience and not current_experience.company:
-                # Look for company indicators
-                company_indicators = ['inc', 'corp', 'llc', 'ltd', 'company', 'technologies', 'solutions']
-                if any(indicator in line.lower() for indicator in company_indicators):
-                    current_experience.company = line
-            
-            # Add to description if it's a bullet point or detailed description
-            if line.startswith('•') or line.startswith('-') or line.startswith('*'):
-                if current_experience:
-                    if current_experience.description:
-                        current_experience.description += '\n' + line
-                    else:
-                        current_experience.description = line
+            i += 1
         
         # Save the last experience
         if current_experience:
@@ -330,59 +396,30 @@ class ResumeParser:
         educations = []
         current_education = None
         
-        # Degree patterns
-        degree_patterns = [
-            r'bachelor',
-            r'master',
-            r'phd',
-            r'doctorate',
-            r'b\.?s\.?',
-            r'b\.?a\.?',
-            r'm\.?s\.?',
-            r'm\.?a\.?',
-            r'mba',
-            r'associate',
-            r'diploma',
-            r'certificate',
-        ]
-        
         for line in text_lines:
             line = line.strip()
             if not line:
                 continue
+
+            # Create a new education entry for each line
+            current_education = Education()
             
-            # Check for degree patterns
-            for pattern in degree_patterns:
-                if re.search(pattern, line, re.IGNORECASE):
-                    # Save previous education
-                    if current_education:
-                        educations.append(current_education)
-                    
-                    # Start new education
-                    current_education = Education()
-                    current_education.degree = line
-                    break
+            # Split line by | to separate degree/major from institution/date
+            parts = [p.strip() for p in line.split('|')]
             
-            # Check for graduation date
-            date_pattern = r'(\d{4}|\w+\s+\d{4})'
-            if re.search(date_pattern, line):
-                if current_education:
-                    current_education.graduation_date = re.search(date_pattern, line).group()
+            if len(parts) > 0:
+                current_education.degree = parts[0]
             
-            # Check for GPA
-            gpa_pattern = r'gpa[:\s]*(\d\.\d+|\d+\.\d+/\d+\.\d+)'
-            gpa_match = re.search(gpa_pattern, line, re.IGNORECASE)
-            if gpa_match and current_education:
-                current_education.gpa = gpa_match.group(1)
+            if len(parts) > 1:
+                # Check for graduation year
+                grad_year_match = re.search(r'\b(\d{4})\b', parts[1])
+                if grad_year_match:
+                    current_education.graduation_date = grad_year_match.group(1)
+                    # The rest is the institution
+                    current_education.institution = re.sub(r'\b(\d{4})\b', '', parts[1]).strip()
+                else:
+                    current_education.institution = parts[1]
             
-            # Check for institution names
-            institution_indicators = ['university', 'college', 'institute', 'school', 'academy']
-            if any(indicator in line.lower() for indicator in institution_indicators):
-                if current_education and not current_education.institution:
-                    current_education.institution = line
-        
-        # Save the last education
-        if current_education:
             educations.append(current_education)
         
         return educations

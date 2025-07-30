@@ -11,6 +11,8 @@ const ResumeManager: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
+  const [previewData, setPreviewData] = useState<any>(null)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
 
   // Load resumes on component mount
   useEffect(() => {
@@ -34,25 +36,49 @@ const ResumeManager: React.FC = () => {
   const handleFileSelect = (files: FileList | null) => {
     if (!files) return
     
-    const validFiles = Array.from(files).filter(file => {
+    console.log('Files selected:', files) // Debug log
+    
+    const fileArray = Array.from(files)
+    const validFiles: File[] = []
+    let hasErrors = false
+    
+    fileArray.forEach(file => {
+      console.log(`Checking file: ${file.name}, type: ${file.type}, size: ${file.size}`) // Debug log
+      
+      // Check file extension (more reliable than MIME type)
+      const fileName = file.name.toLowerCase()
+      const validExtensions = ['.pdf', '.doc', '.docx']
+      const hasValidExtension = validExtensions.some(ext => fileName.endsWith(ext))
+      
+      // Also check MIME types as backup
       const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
       const maxSize = 10 * 1024 * 1024 // 10MB
       
-      if (!validTypes.includes(file.type)) {
+      // Accept file if either extension OR MIME type is valid
+      if (!hasValidExtension && !validTypes.includes(file.type)) {
         setError(`Invalid file type: ${file.name}. Only PDF, DOC, and DOCX files are allowed.`)
-        return false
+        hasErrors = true
+        return
       }
       
       if (file.size > maxSize) {
         setError(`File too large: ${file.name}. Maximum size is 10MB.`)
-        return false
+        hasErrors = true
+        return
       }
       
-      return true
+      validFiles.push(file)
     })
     
-    setSelectedFiles(validFiles)
-    setError(null)
+    console.log('Valid files:', validFiles) // Debug log
+    
+    // Add valid files to the selection (append, don't replace)
+    setSelectedFiles(prev => [...prev, ...validFiles])
+    
+    // Only clear error if no errors occurred
+    if (!hasErrors) {
+      setError(null)
+    }
   }
 
   const uploadFiles = async () => {
@@ -126,6 +152,16 @@ const ResumeManager: React.FC = () => {
       await fetchResumes()
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to reprocess resume')
+    }
+  }
+
+  const handlePreviewData = async (resumeId: number) => {
+    try {
+      const data = await apiService.previewResumeData(resumeId)
+      setPreviewData(data)
+      setIsPreviewOpen(true)
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to fetch preview data')
     }
   }
 
@@ -316,6 +352,12 @@ const ResumeManager: React.FC = () => {
                       Reprocess
                     </button>
                     <button
+                      onClick={() => handlePreviewData(resume.id)}
+                      className="text-green-600 hover:text-green-800 text-sm"
+                    >
+                      Preview
+                    </button>
+                    <button
                       onClick={() => handleDeleteResume(resume.id)}
                       className="text-red-600 hover:text-red-800 text-sm"
                     >
@@ -328,6 +370,135 @@ const ResumeManager: React.FC = () => {
           </div>
         )}
       </div>
+
+      {isPreviewOpen && previewData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-800">Extracted Resume Data</h2>
+              <button
+                onClick={() => setIsPreviewOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+              >
+                ×
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Contact Information */}
+              {previewData.contact_info && (
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-blue-800 mb-3">Contact Information</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {previewData.contact_info.full_name && (
+                      <div><span className="font-medium">Name:</span> {previewData.contact_info.full_name}</div>
+                    )}
+                    {previewData.contact_info.email && (
+                      <div><span className="font-medium">Email:</span> {previewData.contact_info.email}</div>
+                    )}
+                    {previewData.contact_info.phone && (
+                      <div><span className="font-medium">Phone:</span> {previewData.contact_info.phone}</div>
+                    )}
+                    {previewData.contact_info.location && (
+                      <div><span className="font-medium">Location:</span> {previewData.contact_info.location}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Summary */}
+              {previewData.summary && (
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-green-800 mb-3">Summary</h3>
+                  <p className="text-gray-700">{previewData.summary}</p>
+                </div>
+              )}
+              
+              {/* Work Experience */}
+              {previewData.work_experience && previewData.work_experience.length > 0 && (
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-purple-800 mb-3">Work Experience</h3>
+                  <div className="space-y-3">
+                    {previewData.work_experience.map((exp: any, index: number) => (
+                      <div key={index} className="border-l-4 border-purple-400 pl-4">
+                        <div className="font-medium">{exp.job_title || 'N/A'} at {exp.company || 'N/A'}</div>
+                        <div className="text-sm text-gray-600">{exp.start_date || ''} - {exp.end_date || 'Present'}</div>
+                        {exp.description && <div className="text-sm mt-1">{exp.description}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Education */}
+              {previewData.education && previewData.education.length > 0 && (
+                <div className="bg-orange-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-orange-800 mb-3">Education</h3>
+                  <div className="space-y-3">
+                    {previewData.education.map((edu: any, index: number) => (
+                      <div key={index} className="border-l-4 border-orange-400 pl-4">
+                        <div className="font-medium">{edu.degree || 'N/A'} in {edu.field_of_study || 'N/A'}</div>
+                        <div className="text-sm text-gray-600">{edu.institution || 'N/A'}</div>
+                        <div className="text-sm text-gray-600">Graduated: {edu.graduation_year || 'N/A'}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Skills */}
+              {previewData.skills && previewData.skills.length > 0 && (
+                <div className="bg-indigo-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-indigo-800 mb-3">Skills</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {previewData.skills.map((skill: string, index: number) => (
+                      <span key={index} className="bg-indigo-200 text-indigo-800 px-2 py-1 rounded-full text-sm">
+                        {skill}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Certifications */}
+              {previewData.certifications && previewData.certifications.length > 0 && (
+                <div className="bg-red-50 p-4 rounded-lg">
+                  <h3 className="text-lg font-semibold text-red-800 mb-3">Certifications</h3>
+                  <div className="space-y-2">
+                    {previewData.certifications.map((cert: string, index: number) => (
+                      <div key={index} className="flex items-center">
+                        <div className="w-2 h-2 bg-red-400 rounded-full mr-2"></div>
+                        <span>{cert}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Raw JSON Toggle */}
+              <div className="mt-8">
+                <details className="bg-gray-50 p-4 rounded-lg">
+                  <summary className="cursor-pointer font-medium text-gray-700 hover:text-gray-900">
+                    View Raw JSON Data
+                  </summary>
+                  <pre className="mt-4 bg-gray-100 p-4 rounded-lg text-sm overflow-x-auto">
+                    {JSON.stringify(previewData, null, 2)}
+                  </pre>
+                </details>
+              </div>
+            </div>
+            
+            <div className="mt-8 flex justify-end">
+              <button
+                onClick={() => setIsPreviewOpen(false)}
+                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   )
 }

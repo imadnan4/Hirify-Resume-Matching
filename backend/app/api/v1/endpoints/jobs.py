@@ -12,12 +12,11 @@ from app.schemas.job_description import (
 from app.services.job_scraper import JobScraper
 from app.services.skills_extractor import SkillsExtractor
 from app.models.job_description import JobDescription as JobDescriptionModel
+from app.models.match import Match as MatchModel
 
 router = APIRouter()
 
-# Initialize services
-job_scraper = JobScraper()
-skills_extractor = SkillsExtractor()
+# Service instances will be created on-demand to avoid startup delays
 
 @router.post("/", response_model=JobDescription)
 async def create_job_description(
@@ -231,6 +230,10 @@ async def delete_job_description(
     if not job:
         raise HTTPException(status_code=404, detail="Job description not found")
     
+    # First, delete all matches associated with this job
+    db.query(MatchModel).filter(MatchModel.job_id == job_id).delete()
+    
+    # Then, delete the job description
     db.delete(job)
     db.commit()
     
@@ -307,6 +310,8 @@ async def scrape_job_descriptions(
         
         for url in urls:
             try:
+                # Initialize job scraper on-demand
+                job_scraper = JobScraper()
                 # Scrape job description
                 job_data = job_scraper.scrape_job(url)
                 
@@ -413,6 +418,8 @@ async def process_job_background(job_id: int):
         try:
             # Extract skills from job description
             full_text = f"{job.description} {job.requirements or ''}"
+            # Initialize skills extractor on-demand
+            skills_extractor = SkillsExtractor()
             extracted_skills = skills_extractor.extract_skills(full_text)
             
             # Update job with extracted data

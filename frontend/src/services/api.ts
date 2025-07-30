@@ -176,6 +176,11 @@ class ApiService {
     return response.data
   }
 
+  async previewResumeData(id: number) {
+    const response = await api.get(`/api/v1/resumes/${id}/preview`)
+    return response.data
+  }
+
   // Job endpoints
   async createJob(data: Partial<JobDescription>) {
     const response = await api.post('/api/v1/jobs/', data)

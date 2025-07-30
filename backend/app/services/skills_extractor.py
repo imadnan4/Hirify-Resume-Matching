@@ -15,10 +15,12 @@ class SkillsExtractor:
         try:
             self.nlp = spacy.load("en_core_web_sm")
             self.matcher = Matcher(self.nlp.vocab)
+            print("Successfully loaded spaCy model for skills extraction")
         except OSError:
             self.nlp = None
             self.matcher = None
             print("Warning: spaCy model not found. Skills extraction will be limited.")
+            print("Please run: python -m spacy download en_core_web_sm")
         
         # Initialize skills database
         self.technical_skills = self._load_technical_skills()

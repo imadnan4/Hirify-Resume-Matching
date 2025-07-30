@@ -55,31 +55,16 @@ class SimilarityEngine:
             sublinear_tf=True  # Use sublinear scaling for TF
         )
         
-        # Initialize BERT model and tokenizer
-        if TRANSFORMERS_AVAILABLE and TORCH_AVAILABLE:
-            try:
-                self.bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-                self.bert_model = BertModel.from_pretrained('bert-base-uncased')
-                if self.device:
-                    self.bert_model.to(self.device)
-                self.bert_model.eval()
-            except Exception as e:
-                print(f"Warning: Could not load BERT model: {e}")
-                self.bert_tokenizer = None
-                self.bert_model = None
-        else:
-            self.bert_tokenizer = None
-            self.bert_model = None
+        # Initialize BERT model and tokenizer (lazy loading)
+        self.bert_tokenizer = None
+        self.bert_model = None
+        self.bert_model_loading = False
+        self.bert_model_failed = False
         
-        # Initialize Sentence Transformer for better embeddings
-        if SENTENCE_TRANSFORMERS_AVAILABLE:
-            try:
-                self.sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
-            except Exception as e:
-                print(f"Warning: Could not load Sentence Transformer: {e}")
-                self.sentence_model = None
-        else:
-            self.sentence_model = None
+        # Initialize Sentence Transformer for better embeddings (lazy loading)
+        self.sentence_model = None
+        self.sentence_model_loading = False
+        self.sentence_model_failed = False
         
         # Cache for embeddings to improve performance
         self.embedding_cache = {}
@@ -123,8 +108,19 @@ class SimilarityEngine:
         processed_text2 = self.preprocess_text(text2)
         
         try:
+            # Create a temporary vectorizer with settings optimized for small document sets
+            temp_vectorizer = TfidfVectorizer(
+                lowercase=True,
+                stop_words='english',
+                max_features=10000,
+                ngram_range=(1, 2),
+                min_df=1,  # For small sets, include all terms
+                max_df=1.0,  # For small sets, include all terms
+                sublinear_tf=True
+            )
+            
             # Fit and transform texts
-            tfidf_matrix = self.tfidf_vectorizer.fit_transform([processed_text1, processed_text2])
+            tfidf_matrix = temp_vectorizer.fit_transform([processed_text1, processed_text2])
             
             # Calculate cosine similarity
             similarity = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0]
@@ -139,12 +135,41 @@ class SimilarityEngine:
         if not texts:
             return np.array([])
         
-        # Preprocess all texts
+        # For small document sets, fall back to pairwise individual calculations
+        if len(texts) <= 10:  # Use individual calculations for small sets
+            try:
+                n = len(texts)
+                similarity_matrix = np.zeros((n, n))
+                
+                for i in range(n):
+                    for j in range(n):
+                        if i == j:
+                            similarity_matrix[i][j] = 1.0
+                        else:
+                            similarity_matrix[i][j] = self.calculate_tfidf_similarity(texts[i], texts[j])
+                
+                return similarity_matrix
+            except Exception as e:
+                print(f"Error in individual TF-IDF similarity calculation: {e}")
+                return np.zeros((len(texts), len(texts)))
+        
+        # For larger sets, use batch processing with safe settings
         processed_texts = [self.preprocess_text(text) for text in texts]
         
         try:
+            # Always use permissive settings for batch processing
+            temp_vectorizer = TfidfVectorizer(
+                lowercase=True,
+                stop_words='english',
+                max_features=10000,
+                ngram_range=(1, 2),
+                min_df=1,  # Always include all terms
+                max_df=1.0,  # Always include all terms
+                sublinear_tf=True
+            )
+            
             # Fit and transform all texts
-            tfidf_matrix = self.tfidf_vectorizer.fit_transform(processed_texts)
+            tfidf_matrix = temp_vectorizer.fit_transform(processed_texts)
             
             # Calculate pairwise similarities
             similarity_matrix = cosine_similarity(tfidf_matrix)
@@ -154,8 +179,41 @@ class SimilarityEngine:
             print(f"Error in batch TF-IDF similarity calculation: {e}")
             return np.zeros((len(texts), len(texts)))
 
+    def _load_bert_model(self):
+        """Lazy load BERT model"""
+        if self.bert_model is not None or self.bert_model_loading or self.bert_model_failed:
+            return
+        
+        if not (TRANSFORMERS_AVAILABLE and TORCH_AVAILABLE):
+            if not TRANSFORMERS_AVAILABLE:
+                print("Warning: transformers library not available")
+            if not TORCH_AVAILABLE:
+                print("Warning: torch library not available")
+            self.bert_model_failed = True
+            return
+        
+        self.bert_model_loading = True
+        try:
+            print("Loading BERT model...")
+            self.bert_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+            self.bert_model = BertModel.from_pretrained('bert-base-uncased')
+            if self.device:
+                self.bert_model.to(self.device)
+            self.bert_model.eval()
+            print("Successfully loaded BERT model")
+        except Exception as e:
+            print(f"Warning: Could not load BERT model: {e}")
+            print("Similarity calculations will use TF-IDF as fallback")
+            self.bert_tokenizer = None
+            self.bert_model = None
+            self.bert_model_failed = True
+        finally:
+            self.bert_model_loading = False
+    
     def calculate_bert_similarity(self, text1: str, text2: str) -> float:
         """Calculate similarity using BERT embeddings and cosine similarity"""
+        self._load_bert_model()
+        
         if not self.bert_model or not self.bert_tokenizer:
             return 0.0
         
@@ -219,8 +277,33 @@ class SimilarityEngine:
             
             return mean_embeddings.cpu().numpy().flatten()
 
+    def _load_sentence_transformer_model(self):
+        """Lazy load Sentence Transformer model"""
+        if self.sentence_model is not None or self.sentence_model_loading or self.sentence_model_failed:
+            return
+        
+        if not SENTENCE_TRANSFORMERS_AVAILABLE:
+            print("Warning: sentence-transformers library not available")
+            self.sentence_model_failed = True
+            return
+        
+        self.sentence_model_loading = True
+        try:
+            print("Loading Sentence Transformer model...")
+            self.sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+            print("Successfully loaded Sentence Transformer model")
+        except Exception as e:
+            print(f"Warning: Could not load Sentence Transformer: {e}")
+            print("This may be due to network issues or missing dependencies")
+            self.sentence_model = None
+            self.sentence_model_failed = True
+        finally:
+            self.sentence_model_loading = False
+    
     def calculate_sentence_transformer_similarity(self, text1: str, text2: str) -> float:
         """Calculate similarity using Sentence Transformers"""
+        self._load_sentence_transformer_model()
+        
         if not self.sentence_model:
             return 0.0
         
@@ -262,15 +345,25 @@ class SimilarityEngine:
             processed_text1 = self.preprocess_text(text1)
             processed_text2 = self.preprocess_text(text2)
             
+            # Create a temporary vectorizer with settings optimized for small document sets
+            temp_vectorizer = TfidfVectorizer(
+                lowercase=True,
+                stop_words='english',
+                max_features=10000,
+                ngram_range=(1, 2),
+                min_df=1,  # For small sets, include all terms
+                max_df=1.0,  # For small sets, include all terms
+                sublinear_tf=True
+            )
+            
             # Create TF-IDF matrix
-            tfidf_matrix = self.tfidf_vectorizer.fit_transform([processed_text1, processed_text2])
+            tfidf_matrix = temp_vectorizer.fit_transform([processed_text1, processed_text2])
+            
+            # Create a temporary LSA for this calculation
+            temp_lsa = TruncatedSVD(n_components=min(100, tfidf_matrix.shape[1]), random_state=42)
             
             # Apply LSA
-            if not self.lsa_fitted:
-                lsa_matrix = self.lsa.fit_transform(tfidf_matrix)
-                self.lsa_fitted = True
-            else:
-                lsa_matrix = self.lsa.transform(tfidf_matrix)
+            lsa_matrix = temp_lsa.fit_transform(tfidf_matrix)
             
             # Calculate cosine similarity
             similarity = cosine_similarity(lsa_matrix[0:1], lsa_matrix[1:2])[0][0]

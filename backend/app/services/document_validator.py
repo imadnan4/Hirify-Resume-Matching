@@ -5,11 +5,7 @@ import mimetypes
 import os
 from typing import Optional, List, Dict, Any
 from pathlib import Path
-try:
-    import magic  # python-magic for file type detection
-    HAS_MAGIC = True
-except ImportError:
-    HAS_MAGIC = False
+# No longer using python-magic to avoid C-binding issues
 import logging
 from ..core.config import settings
 
@@ -136,15 +132,7 @@ class DocumentValidator:
     
     def _detect_mime_type(self, file_path: str) -> str:
         """Detect MIME type of a file."""
-        try:
-            # Try using python-magic first (more accurate)
-            if HAS_MAGIC:
-                mime_type = magic.from_file(file_path, mime=True)
-                return mime_type
-        except:
-            pass
-        
-        # Fallback to mimetypes module
+        # Always use mimetypes for broader compatibility
         mime_type, _ = mimetypes.guess_type(file_path)
         return mime_type or 'application/octet-stream'
     

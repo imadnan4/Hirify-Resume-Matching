@@ -5,7 +5,17 @@ from typing import List, Optional
 import os
 import uuid
 from datetime import datetime
-import asyncio
+from app.core.config import settings
+
+# Import background processing only if enabled
+if settings.USE_BACKGROUND_PROCESSING:
+    try:
+        from app.tasks.resume_processing import process_resume_task
+        BACKGROUND_PROCESSING_AVAILABLE = True
+    except ImportError:
+        BACKGROUND_PROCESSING_AVAILABLE = False
+else:
+    BACKGROUND_PROCESSING_AVAILABLE = False
 import json
 
 from app.core.database import get_db
@@ -14,15 +24,13 @@ from app.schemas.resume import (
     ResumeUploadResponse, ResumeProcessingStatus, BulkResumeUpload
 )
 from app.services.resume_parser import ResumeParser
-from app.services.document_validator import DocumentValidator
+from app.services.document_text_extractor import DocumentTextExtractor
 from app.models.resume import Resume as ResumeModel
 from app.models.candidate import Candidate as CandidateModel
 
 router = APIRouter()
 
-# Initialize services
-resume_parser = ResumeParser()
-document_validator = DocumentValidator()
+# Service instances will be created on-demand to avoid startup delays
 
 # Upload directory configuration
 UPLOAD_DIR = "uploads/resumes"
@@ -62,6 +70,8 @@ async def upload_resume(
             buffer.write(content)
         
         # Validate saved file
+        # Initialize validator on-demand
+        document_validator = DocumentValidator()
         validation_result = document_validator.validate_file(file_path, file.filename)
         if not validation_result['is_valid']:
             # Clean up the saved file if validation fails
@@ -92,8 +102,12 @@ async def upload_resume(
         db.commit()
         db.refresh(db_resume)
         
-        # Start background processing
-        asyncio.create_task(process_resume_background(db_resume.id, file_path))
+        # Start processing (background or synchronous based on configuration)
+        if BACKGROUND_PROCESSING_AVAILABLE and settings.USE_BACKGROUND_PROCESSING:
+            process_resume_task.delay(db_resume.id, file_path)
+        else:
+            # Process synchronously for development
+            await process_resume_sync(db_resume.id, file_path, db)
         
         return ResumeUploadResponse(
             id=db_resume.id,
@@ -149,6 +163,8 @@ async def bulk_upload_resumes(
                 buffer.write(content)
             
             # Validate saved file
+            # Initialize validator on-demand
+            document_validator = DocumentValidator()
             validation_result = document_validator.validate_file(file_path, file.filename)
             if not validation_result['is_valid']:
                 # Clean up the saved file if validation fails
@@ -172,8 +188,12 @@ async def bulk_upload_resumes(
             db.commit()
             db.refresh(db_resume)
             
-            # Start background processing
-            asyncio.create_task(process_resume_background(db_resume.id, file_path))
+            # Start processing (background or synchronous based on configuration)
+            if BACKGROUND_PROCESSING_AVAILABLE and settings.USE_BACKGROUND_PROCESSING:
+                process_resume_task.delay(db_resume.id, file_path)
+            else:
+                # Process synchronously for development
+                await process_resume_sync(db_resume.id, file_path, db)
             
             successful.append(ResumeUploadResponse(
                 id=db_resume.id,
@@ -226,6 +246,27 @@ async def list_resumes(
         size=limit,
         pages=(total + limit - 1) // limit
     )
+
+@router.get("/{resume_id}/preview", response_model=dict)
+async def preview_extracted_data(
+    resume_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Preview the extracted structured data from a processed resume.
+    
+    - **resume_id**: ID of the resume to preview
+    - Returns: Extracted structured data
+    """
+    resume = db.query(ResumeModel).filter(ResumeModel.id == resume_id).first()
+    
+    if not resume:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    
+    if resume.status != "completed" or not resume.structured_data:
+        raise HTTPException(status_code=400, detail="Resume not processed or no data available")
+    
+    return resume.structured_data
 
 @router.get("/{resume_id}", response_model=Resume)
 async def get_resume(
@@ -324,15 +365,31 @@ async def delete_resume(
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
     
-    # Delete file if it exists
-    if os.path.exists(resume.file_path):
-        os.remove(resume.file_path)
-    
-    # Delete from database
-    db.delete(resume)
-    db.commit()
-    
-    return {"message": "Resume deleted successfully"}
+    try:
+        # Delete related candidate records first (foreign key constraint)
+        candidates = db.query(CandidateModel).filter(CandidateModel.resume_id == resume_id).all()
+        for candidate in candidates:
+            db.delete(candidate)
+        
+        # Delete related match records
+        from app.models.match import Match as MatchModel
+        matches = db.query(MatchModel).filter(MatchModel.resume_id == resume_id).all()
+        for match in matches:
+            db.delete(match)
+        
+        # Delete file if it exists
+        if os.path.exists(resume.file_path):
+            os.remove(resume.file_path)
+        
+        # Delete from database
+        db.delete(resume)
+        db.commit()
+        
+        return {"message": "Resume deleted successfully"}
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete resume: {str(e)}")
 
 @router.post("/{resume_id}/reprocess")
 async def reprocess_resume(
@@ -361,16 +418,18 @@ async def reprocess_resume(
     
     db.commit()
     
-    # Start background processing
-    asyncio.create_task(process_resume_background(resume.id, resume.file_path))
+    # Start processing (background or synchronous based on configuration)
+    if BACKGROUND_PROCESSING_AVAILABLE and settings.USE_BACKGROUND_PROCESSING:
+        process_resume_task.delay(resume.id, resume.file_path)
+    else:
+        # Process synchronously for development
+        await process_resume_sync(resume.id, resume.file_path, db)
     
     return {"message": "Resume reprocessing started"}
 
-async def process_resume_background(resume_id: int, file_path: str):
-    """Background task for resume processing"""
-    from app.core.database import SessionLocal
-    
-    db = SessionLocal()
+
+async def process_resume_sync(resume_id: int, file_path: str, db: Session):
+    """Synchronous resume processing for development mode"""
     try:
         # Get resume record
         resume = db.query(ResumeModel).filter(ResumeModel.id == resume_id).first()
@@ -384,7 +443,21 @@ async def process_resume_background(resume_id: int, file_path: str):
         
         # Process the resume
         try:
-            parsed_resume = resume_parser.parse_resume(file_path)
+            # Extract text from the document file first
+            document_extractor = DocumentTextExtractor()
+            
+            # Extract text from the file
+            extraction_result = document_extractor.extract_text(file_path)
+            extracted_text = extraction_result.get('text', '')
+            
+            if not extracted_text:
+                raise Exception("No text could be extracted from the document")
+            
+            # Initialize parser on-demand
+            resume_parser = ResumeParser()
+            
+            # Parse the extracted text (not the file path)
+            parsed_resume = resume_parser.parse_resume(extracted_text)
             
             # Update resume with parsed data
             resume.extracted_text = parsed_resume.raw_text
@@ -402,14 +475,19 @@ async def process_resume_background(resume_id: int, file_path: str):
             
             # Create candidate record if name is available
             if parsed_resume.contact_info.full_name:
-                candidate = CandidateModel(
-                    full_name=parsed_resume.contact_info.full_name,
-                    email=parsed_resume.contact_info.email,
-                    phone=parsed_resume.contact_info.phone,
-                    location=parsed_resume.contact_info.location,
-                    resume_id=resume.id
-                )
-                db.add(candidate)
+                existing_candidate = db.query(CandidateModel).filter(
+                    CandidateModel.resume_id == resume.id
+                ).first()
+                
+                if not existing_candidate:
+                    candidate = CandidateModel(
+                        full_name=parsed_resume.contact_info.full_name,
+                        email=parsed_resume.contact_info.email,
+                        phone=parsed_resume.contact_info.phone,
+                        location=parsed_resume.contact_info.location,
+                        resume_id=resume.id
+                    )
+                    db.add(candidate)
             
         except Exception as e:
             resume.status = "failed"
@@ -418,5 +496,5 @@ async def process_resume_background(resume_id: int, file_path: str):
         resume.updated_at = datetime.utcnow()
         db.commit()
         
-    finally:
-        db.close()
+    except Exception as e:
+        print(f"Error in synchronous resume processing: {str(e)}")

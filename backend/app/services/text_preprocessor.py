@@ -4,6 +4,10 @@ import unicodedata
 import os
 from typing import List, Optional
 
+# Import NLTK initialization first
+from app.core.nltk_init import init_nltk
+init_nltk()  # Ensure NLTK data is available
+
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import sent_tokenize, word_tokenize
@@ -14,39 +18,14 @@ class TextPreprocessor:
     """Comprehensive text preprocessing service for NLP tasks"""
 
     def __init__(self):
-        self._setup_nltk_data()
+        # NLTK is initialized by the init module
         self.stop_words = set(stopwords.words('english'))
         self.stemmer = PorterStemmer()
         self.lemmatizer = WordNetLemmatizer()
-        try:
-            self.nlp = spacy.load("en_core_web_sm")
-        except OSError:
-            self.nlp = None
-            print("Warning: spaCy model 'en_core_web_sm' not found. Some features may be limited.")
-
-    def _setup_nltk_data(self):
-        """Setup NLTK data path and download if needed"""
-        # Set NLTK data path from environment variable
-        nltk_data_path = os.environ.get('NLTK_DATA', '/opt/venv/nltk_data')
-        if nltk_data_path not in nltk.data.path:
-            nltk.data.path.insert(0, nltk_data_path)
-        
-        # Try to find required data, download only if not found
-        required_data = [
-            ('tokenizers/punkt', 'punkt'),
-            ('corpora/stopwords', 'stopwords'),
-            ('corpora/wordnet', 'wordnet')
-        ]
-        
-        for data_path, download_name in required_data:
-            try:
-                nltk.data.find(data_path)
-            except LookupError:
-                print(f"NLTK data {download_name} not found, attempting download...")
-                try:
-                    nltk.download(download_name, download_dir=nltk_data_path)
-                except Exception as e:
-                    print(f"Warning: Could not download NLTK data {download_name}: {e}")
+        # Lazy load spaCy model - don't load during init
+        self.nlp = None
+        self.nlp_loading = False
+        self.nlp_failed = False
 
     def clean_text(self, text: str) -> str:
         """Clean and normalize text for processing"""
@@ -107,8 +86,27 @@ class TextPreprocessor:
         """Remove tokens shorter than minimum length"""
         return [token for token in tokens if len(token) >= min_length]
 
+    def _load_spacy_model(self):
+        """Lazy load spaCy model on demand"""
+        if self.nlp is not None or self.nlp_loading or self.nlp_failed:
+            return
+        
+        self.nlp_loading = True
+        try:
+            self.nlp = spacy.load("en_core_web_sm")
+            print("Successfully loaded spaCy model for text preprocessing")
+        except OSError:
+            self.nlp = None
+            self.nlp_failed = True
+            print("Warning: spaCy model 'en_core_web_sm' not found. Some features may be limited.")
+            print("Please run: python -m spacy download en_core_web_sm")
+        finally:
+            self.nlp_loading = False
+    
     def extract_entities_spacy(self, text: str) -> List[dict]:
         """Extract named entities using spaCy"""
+        self._load_spacy_model()
+        
         if not self.nlp or not text:
             return []
         
@@ -155,6 +153,8 @@ class TextPreprocessor:
 
     def extract_key_phrases(self, text: str, max_phrases: int = 10) -> List[str]:
         """Extract key phrases from text using spaCy"""
+        self._load_spacy_model()
+        
         if not self.nlp or not text:
             return []
         

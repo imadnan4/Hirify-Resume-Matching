@@ -27,7 +27,7 @@ class AdvancedNLPPipeline:
         self.name = "Advanced NLP Pipeline"
         self.nlp = None
         self.is_loaded = False
-        self._load_model()
+        # Don't load model during init - use lazy loading
     
     def _load_model(self):
         """Load spaCy model"""
@@ -51,6 +51,10 @@ class AdvancedNLPPipeline:
         """
         start_time = datetime.now()
         
+        if not self.is_loaded:
+            # Try to load model if not already loaded
+            self._load_model()
+            
         if not self.is_loaded:
             # Fallback to mock results if spacy not loaded
             return self._mock_processing_result(text, start_time)
@@ -158,6 +162,9 @@ class AdvancedNLPPipeline:
     
     def extract_entities(self, text: str) -> List[Dict[str, Any]]:
         """Extract named entities from text"""
+        if not self.is_loaded:
+            self._load_model()
+            
         if not self.is_loaded or not text:
             return []
         
@@ -186,6 +193,9 @@ class AdvancedNLPPipeline:
     
     def extract_keywords(self, text: str, max_keywords: int = 10) -> List[str]:
         """Extract keywords from text"""
+        if not self.is_loaded:
+            self._load_model()
+            
         if not self.is_loaded or not text:
             return []
         

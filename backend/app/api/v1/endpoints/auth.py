@@ -27,7 +27,7 @@ from app.services.auth_service import AuthService
 from app.core.logging_config import app_logger
 
 router = APIRouter()
-auth_service = AuthService()
+# AuthService will be created on-demand to avoid startup delays
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -39,6 +39,9 @@ async def register(
     Register a new user
     """
     try:
+        # Initialize auth service on-demand
+        auth_service = AuthService()
+        
         # Check if user already exists
         if await auth_service.get_user_by_email(db, user_data.email):
             raise HTTPException(
@@ -60,7 +63,7 @@ async def register(
     except HTTPException:
         raise
     except Exception as e:
-        app_logger.log_error(f"Registration error: {str(e)}")
+        app_logger.log_system_event(f"Registration error: {str(e)}", level="ERROR")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration failed"
@@ -76,6 +79,9 @@ async def login(
     User login with email and password
     """
     try:
+        # Initialize auth service on-demand
+        auth_service = AuthService()
+        
         # Authenticate user
         user = await auth_service.authenticate_user(
             db, form_data.username, form_data.password
@@ -117,7 +123,7 @@ async def login(
     except HTTPException:
         raise
     except Exception as e:
-        app_logger.log_error(f"Login error: {str(e)}")
+        app_logger.log_system_event(f"Login error: {str(e)}", level="ERROR")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Login failed"
@@ -146,7 +152,7 @@ async def refresh_token(
         }
         
     except Exception as e:
-        app_logger.log_error(f"Token refresh error: {str(e)}")
+        app_logger.log_system_event(f"Token refresh error: {str(e)}", level="ERROR")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Token refresh failed"
@@ -173,6 +179,8 @@ async def update_user_profile(
     Update current user profile
     """
     try:
+        # Initialize auth service on-demand
+        auth_service = AuthService()
         updated_user = await auth_service.update_user(
             db, current_user.id, user_update
         )
@@ -186,7 +194,7 @@ async def update_user_profile(
         return UserResponse.from_orm(updated_user)
         
     except Exception as e:
-        app_logger.log_error(f"Profile update error: {str(e)}")
+        app_logger.log_system_event(f"Profile update error: {str(e)}", level="ERROR")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Profile update failed"
@@ -211,6 +219,8 @@ async def change_password(
             )
         
         # Update password
+        # Initialize auth service on-demand
+        auth_service = AuthService()
         success = await auth_service.change_password(
             db, current_user.id, password_data.new_password
         )
@@ -248,6 +258,9 @@ async def forgot_password(
     Request password reset
     """
     try:
+        # Initialize auth service on-demand
+        auth_service = AuthService()
+        
         # Check if user exists
         user = await auth_service.get_user_by_email(db, email)
         if not user:
@@ -282,6 +295,9 @@ async def reset_password(
     Reset password using reset token
     """
     try:
+        # Initialize auth service on-demand
+        auth_service = AuthService()
+        
         # Verify and use reset token
         user = await auth_service.verify_password_reset_token(
             db, reset_data.token
@@ -347,6 +363,8 @@ async def delete_account(
     Delete user account
     """
     try:
+        # Initialize auth service on-demand
+        auth_service = AuthService()
         success = await auth_service.delete_user(db, current_user.id)
         
         if not success:
@@ -382,6 +400,8 @@ async def verify_email(
     Verify email address
     """
     try:
+        # Initialize auth service on-demand
+        auth_service = AuthService()
         user = await auth_service.verify_email_token(db, token)
         
         if not user:

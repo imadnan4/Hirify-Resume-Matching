@@ -114,10 +114,18 @@ class MatchingService:
         try:
             # Extract skills from resume and job
             resume_skills = set()
-            if resume.skills and 'skills' in resume.skills:
-                resume_skills = set(skill['skill'].lower() for skill in resume.skills['skills'])
+            if hasattr(resume, 'skills') and resume.skills:
+                if isinstance(resume.skills, dict) and 'skills' in resume.skills:
+                    resume_skills = set(skill['skill'].lower() for skill in resume.skills['skills'] if isinstance(skill, dict) and 'skill' in skill)
+                elif isinstance(resume.skills, list):
+                    resume_skills = set(skill.lower() for skill in resume.skills)
             
-            job_skills = set(skill.lower() for skill in job.skills) if job.skills else set()
+            job_skills = set()
+            if hasattr(job, 'skills') and job.skills:
+                job_skills = set(skill.lower() for skill in job.skills)
+            elif hasattr(job, 'extracted_skills') and job.extracted_skills and 'skills' in job.extracted_skills:
+                if 'skills' in job.extracted_skills['skills']:
+                    job_skills = set(skill['skill'].lower() for skill in job.extracted_skills['skills']['skills'] if isinstance(skill, dict) and 'skill' in skill)
             
             # If no skills found, use text similarity
             if not resume_skills and not job_skills:

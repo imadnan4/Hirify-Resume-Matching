@@ -42,13 +42,14 @@ class DocumentParserService:
         self.temp_dir = Path(tempfile.gettempdir()) / "hirify"
         self.temp_dir.mkdir(exist_ok=True)
     
-    async def parse_document(self, file_path: str, original_filename: str) -> Dict[str, Any]:
+    async def parse_document(self, file_path: str, original_filename: str, max_file_size: int = 50 * 1024 * 1024) -> Dict[str, Any]:
         """
         Parse a document and extract all relevant information.
         
         Args:
             file_path: Path to the uploaded file
             original_filename: Original filename from upload
+            max_file_size: Maximum file size in bytes (default 50MB)
             
         Returns:
             Dict containing all extracted information

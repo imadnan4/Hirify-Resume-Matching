@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from typing import List, Optional
 import os
 
@@ -28,19 +29,36 @@ class Settings(BaseSettings):
     MONITORING_INTERVAL: int = 60
     
     # Database
-    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/hirify"
+    DATABASE_URL: str = "sqlite:///./hirify.db"
     
-    # Redis
+    # Redis (optional - only needed for production)
     REDIS_URL: str = "redis://localhost:6379/0"
     
-    # Celery
+    # Celery (optional - only needed for production)
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
+    
+    # Processing mode (sync for development, async for production)
+    USE_BACKGROUND_PROCESSING: bool = False
     
     # File Storage
     UPLOAD_DIR: str = "uploads"
     MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
     ALLOWED_FILE_TYPES: List[str] = ["pdf", "doc", "docx"]
+    
+    @field_validator('ALLOWED_FILE_TYPES', mode='before')
+    @classmethod
+    def parse_allowed_file_types(cls, v):
+        if isinstance(v, str):
+            return [x.strip() for x in v.split(',')]
+        return v
+    
+    @field_validator('BACKEND_CORS_ORIGINS', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            return [x.strip() for x in v.split(',')]
+        return v
     
     # NLP Settings
     SPACY_MODEL: str = "en_core_web_sm"

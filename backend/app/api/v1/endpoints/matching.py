@@ -19,8 +19,7 @@ from app.models.match import Match as MatchModel
 
 router = APIRouter()
 
-# Initialize matching service
-matching_service = MatchingService()
+# Service instances will be created on-demand to avoid startup delays
 
 @router.post("/match", response_model=dict)
 async def match_resume_to_job_v2(
@@ -52,30 +51,56 @@ async def match_resume_to_job_v2(
         parsed_resume = convert_db_resume_to_parsed(resume)
         job_desc = convert_db_job_to_service(job)
         
+        # Initialize matching service on-demand
+        matching_service = MatchingService()
+        
         # Calculate match
         match_result = matching_service.calculate_match_score(parsed_resume, job_desc)
         
-        # Save match to database
-        db_match = MatchModel(
-            resume_id=request.resume_id,
-            job_id=request.job_id,
-            overall_score=match_result.match_score.overall_score * 100,  # Convert to 0-100 scale
-            skills_score=match_result.match_score.skills_score * 100,
-            experience_score=match_result.match_score.experience_score * 100,
-            education_score=match_result.match_score.education_score * 100,
-            additional_score=match_result.match_score.additional_score * 100,
-            matched_skills={"skills": match_result.matched_skills},
-            missing_skills={"skills": match_result.missing_skills},
-            skill_overlap_count=len(match_result.matched_skills),
-            total_required_skills=len(match_result.matched_skills) + len(match_result.missing_skills),
-            explanation={"explanation": match_result.match_score.explanation},
-            confidence_level=_get_confidence_level(match_result.match_score.confidence),
-            recommendation=_generate_recommendation(match_result.match_score.overall_score),
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
+        # Check if match already exists and update it, otherwise create new one
+        existing_match = db.query(MatchModel).filter(
+            MatchModel.resume_id == request.resume_id,
+            MatchModel.job_id == request.job_id
+        ).first()
         
-        db.add(db_match)
+        if existing_match:
+            # Update existing match
+            existing_match.overall_score = match_result.match_score.overall_score * 100
+            existing_match.skills_score = match_result.match_score.skills_score * 100
+            existing_match.experience_score = match_result.match_score.experience_score * 100
+            existing_match.education_score = match_result.match_score.education_score * 100
+            existing_match.additional_score = match_result.match_score.additional_score * 100
+            existing_match.matched_skills = {"skills": match_result.matched_skills}
+            existing_match.missing_skills = {"skills": match_result.missing_skills}
+            existing_match.skill_overlap_count = len(match_result.matched_skills)
+            existing_match.total_required_skills = len(match_result.matched_skills) + len(match_result.missing_skills)
+            existing_match.explanation = {"explanation": match_result.match_score.explanation}
+            existing_match.confidence_level = _get_confidence_level(match_result.match_score.confidence)
+            existing_match.recommendation = _generate_recommendation(match_result.match_score.overall_score)
+            existing_match.updated_at = datetime.utcnow()
+            db_match = existing_match
+        else:
+            # Create new match
+            db_match = MatchModel(
+                resume_id=request.resume_id,
+                job_id=request.job_id,
+                overall_score=match_result.match_score.overall_score * 100,  # Convert to 0-100 scale
+                skills_score=match_result.match_score.skills_score * 100,
+                experience_score=match_result.match_score.experience_score * 100,
+                education_score=match_result.match_score.education_score * 100,
+                additional_score=match_result.match_score.additional_score * 100,
+                matched_skills={"skills": match_result.matched_skills},
+                missing_skills={"skills": match_result.missing_skills},
+                skill_overlap_count=len(match_result.matched_skills),
+                total_required_skills=len(match_result.matched_skills) + len(match_result.missing_skills),
+                explanation={"explanation": match_result.match_score.explanation},
+                confidence_level=_get_confidence_level(match_result.match_score.confidence),
+                recommendation=_generate_recommendation(match_result.match_score.overall_score),
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            db.add(db_match)
+        
         db.commit()
         db.refresh(db_match)
         
@@ -122,6 +147,9 @@ async def match_resume_to_job_body(
 
         parsed_resume = convert_db_resume_to_parsed(resume)
         job_desc = convert_db_job_to_service(job)
+        
+        # Initialize matching service on-demand
+        matching_service = MatchingService()
         match_result = matching_service.calculate_match_score(parsed_resume, job_desc)
 
         return {
@@ -175,6 +203,9 @@ async def bulk_match_resumes_to_jobs(
         # Convert to service models
         parsed_resumes = [convert_db_resume_to_parsed(resume) for resume in resumes]
         job_descriptions = [convert_db_job_to_service(job) for job in jobs]
+        
+        # Initialize matching service on-demand
+        matching_service = MatchingService()
         
         # Perform bulk matching
         match_results = await matching_service.bulk_match(
@@ -311,6 +342,9 @@ async def get_ranked_candidates_for_job(
             )
             
             service_matches.append(match_result)
+        
+        # Initialize matching service on-demand
+        matching_service = MatchingService()
         
         # Rank candidates
         ranked_candidates = matching_service.rank_candidates(service_matches, str(job_id))
@@ -605,7 +639,7 @@ def convert_db_resume_to_parsed(resume: ResumeModel) -> ParsedResume:
             degree=edu_data.get('degree', ''),
             field_of_study=edu_data.get('field_of_study', ''),
             institution=edu_data.get('institution', ''),
-            graduation_year=edu_data.get('graduation_year', '')
+            graduation_date=edu_data.get('graduation_date', edu_data.get('graduation_year', ''))
         )
         education.append(edu)
     
@@ -624,7 +658,14 @@ def convert_db_job_to_service(job: JobDescriptionModel) -> JobDescription:
     """Convert database job to JobDescription service model"""
     skills = []
     if job.extracted_skills and 'skills' in job.extracted_skills:
-        skills = job.extracted_skills['skills']
+        # Handle nested skills structure: extracted_skills['skills']['skills']
+        skills_data = job.extracted_skills['skills']
+        if isinstance(skills_data, dict) and 'skills' in skills_data:
+            # Extract skill names from the nested structure
+            skills = [skill['skill'] for skill in skills_data['skills'] if isinstance(skill, dict) and 'skill' in skill]
+        elif isinstance(skills_data, list):
+            # Handle case where skills are directly in a list
+            skills = skills_data
     
     return JobDescription(
         job_id=str(job.id),
