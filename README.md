@@ -1,4 +1,4 @@
-# 🚀 Hirify - AI-Powered Resume and Job Matching Platform
+#  Hirify - AI-Powered Resume and Job Matching Platform
 
 <div align="center">
 
