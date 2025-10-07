@@ -167,7 +167,7 @@ source venv/bin/activate  # or venv\Scripts\activate on Windows
 celery -A celery_app worker --loglevel=info
 ```
 
-### **✅ Verify Installation**
+### ** Verify Installation**
 
 | Service | URL | Status |
 |---------|-----|--------|
