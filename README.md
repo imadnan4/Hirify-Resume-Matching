@@ -2,7 +2,6 @@
 
 <div align="center">
 
-![Hirify Logo](https://via.placeholder.com/200x80/4F46E5/FFFFFF?text=Hirify)
 
 **Intelligent resume parsing and job matching system powered by advanced NLP and machine learning**
 
