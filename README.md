@@ -18,7 +18,7 @@
 
 ##  Table of Contents
 
-- [✨ Features](#-features)
+- [ Features](#-features)
 - [🏗️ Architecture](#️-architecture)
 - [🛠️ Tech Stack](#️-tech-stack)
 - [🚀 Quick Start](#-quick-start)
