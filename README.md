@@ -19,7 +19,7 @@
 ##  Table of Contents
 
 - [ Features](#-features)
-- [🏗️ Architecture](#️-architecture)
+- [ Architecture](#️-architecture)
 - [🛠️ Tech Stack](#️-tech-stack)
 - [🚀 Quick Start](#-quick-start)
 - [📊 API Documentation](#-api-documentation)
