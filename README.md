@@ -21,7 +21,7 @@
 - [ Features](#-features)
 - [ Architecture](#️-architecture)
 - [ Tech Stack](#️-tech-stack)
-- [🚀 Quick Start](#-quick-start)
+- [ Quick Start](#-quick-start)
 - [📊 API Documentation](#-api-documentation)
 - [🧠 NLP Pipeline](#-nlp-pipeline)
 - [📁 Project Structure](#-project-structure)
