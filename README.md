@@ -23,7 +23,7 @@
 - [ Tech Stack](#️-tech-stack)
 - [ Quick Start](#-quick-start)
 - [ API Documentation](#-api-documentation)
-- [🧠 NLP Pipeline](#-nlp-pipeline)
+- [ NLP Pipeline](#-nlp-pipeline)
 - [📁 Project Structure](#-project-structure)
 - [🔧 Configuration](#-configuration)
 - [🚢 Deployment](#-deployment)
