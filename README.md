@@ -24,7 +24,7 @@
 - [ Quick Start](#-quick-start)
 - [ API Documentation](#-api-documentation)
 - [ NLP Pipeline](#-nlp-pipeline)
-- [📁 Project Structure](#-project-structure)
+- [ Project Structure](#-project-structure)
 - [🔧 Configuration](#-configuration)
 - [🚢 Deployment](#-deployment)
 - [🤝 Contributing](#-contributing)
