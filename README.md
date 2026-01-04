@@ -26,7 +26,7 @@
 - [ NLP Pipeline](#-nlp-pipeline)
 - [ Project Structure](#-project-structure)
 - [ Configuration](#-configuration)
-- [🚢 Deployment](#-deployment)
+- [ Deployment](#-deployment)
 - [🤝 Contributing](#-contributing)
 - [📄 License](#-license)
 
