@@ -27,7 +27,7 @@
 - [ Project Structure](#-project-structure)
 - [ Configuration](#-configuration)
 - [ Deployment](#-deployment)
-- [🤝 Contributing](#-contributing)
+- [ Contributing](#-contributing)
 - [📄 License](#-license)
 
 ---
