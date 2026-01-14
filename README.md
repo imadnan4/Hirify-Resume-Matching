@@ -10,7 +10,7 @@
 [![React](https://img.shields.io/badge/React-18+-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
 
-[ Documentation](./project.md) • [ Installation](#-quick-start) • [📊 API Docs](#-api-documentation) • [ Contributing](#-contributing)
+[ Documentation](./project.md) • [ Installation](#-quick-start) • [ API Docs](#-api-documentation) • [ Contributing](#-contributing)
 
 </div>
 
