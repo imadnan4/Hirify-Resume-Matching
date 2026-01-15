@@ -73,7 +73,7 @@ graph TB
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 ### **Frontend**
 - **React 18** with TypeScript for type safety
