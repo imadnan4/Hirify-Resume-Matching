@@ -32,7 +32,7 @@
 
 ---
 
-## ✨ Features
+##  Features
 
 ### 🎯 **Core Capabilities**
 - **📄 Resume Processing**: Extract structured data from PDF, DOC, and DOCX files
