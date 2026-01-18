@@ -143,7 +143,7 @@ cp .env.example .env
 alembic upgrade head
 
 # Start FastAPI server
-uvicorn main:app --reload
+uvicorn app.main:app --reload --port 8000
 ```
 
 #### **Frontend Setup**
@@ -164,6 +164,23 @@ npm run dev
 cd backend
 source venv/bin/activate  # or venv\Scripts\activate on Windows
 celery -A celery_app worker --loglevel=info
+```
+
+### **▶️ Running the Project**
+
+#### **Start Backend**
+```bash
+cd backend
+source venv/bin/activate   # Linux/macOS
+# OR: venv\Scripts\activate  # Windows
+
+uvicorn app.main:app --reload --port 8000
+```
+
+#### **Start Frontend** (in a new terminal)
+```bash
+cd frontend
+npm run dev
 ```
 
 ### ** Verify Installation**

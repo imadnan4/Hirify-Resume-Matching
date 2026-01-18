@@ -3,8 +3,8 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from datetime import datetime
 import spacy
-from .text_preprocessor import TextPreprocessor
-from .skills_extractor import SkillsExtractor
+from .nlp_service import nlp_service
+from .semantic_skills import semantic_skills_extractor
 
 
 @dataclass
@@ -83,8 +83,8 @@ class ResumeParser:
     """Advanced resume parsing service with section identification"""
     
     def __init__(self):
-        self.text_preprocessor = TextPreprocessor()
-        self.skills_extractor = SkillsExtractor()
+        self.nlp_service = nlp_service
+        self.skills_extractor = semantic_skills_extractor
         self.nlp = None  # Don't load spaCy model during init - use lazy loading
         self.__post_init__()
         

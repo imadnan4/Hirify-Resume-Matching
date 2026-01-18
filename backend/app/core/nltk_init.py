@@ -8,6 +8,7 @@ from typing import List
 def ensure_nltk_data() -> bool:
     """
     Ensure all required NLTK data is downloaded and available.
+    Uses caching - only downloads if data is missing.
     
     Returns:
         bool: True if all data is available, False otherwise
@@ -31,15 +32,20 @@ def ensure_nltk_data() -> bool:
     ]
     
     all_available = True
+    missing_packages = []
     
     for data_path, package_name in required_packages:
         try:
-            # Try to find the data
+            # Try to find the data - silent check
             nltk.data.find(data_path)
         except LookupError:
+            missing_packages.append(package_name)
+    
+    # Only download missing packages
+    if missing_packages:
+        print(f"Downloading missing NLTK packages: {', '.join(missing_packages)}")
+        for package_name in missing_packages:
             try:
-                # Download if not found
-                print(f"Downloading NLTK package: {package_name}")
                 nltk.download(package_name, quiet=True)
             except Exception as e:
                 print(f"Failed to download NLTK package {package_name}: {e}")

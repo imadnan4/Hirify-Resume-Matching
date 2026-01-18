@@ -137,13 +137,17 @@ const MatchingInterface: React.FC = () => {
     }
   }
 
-  const handleDeleteMatch = async (matchId: number) => {
+  const handleDeleteMatch = async (matchId: number, e?: React.MouseEvent) => {
+    e?.stopPropagation()
     if (!confirm('Are you sure you want to delete this match?')) return
     
     try {
+      console.log('Deleting match:', matchId)
       await apiService.deleteMatch(matchId)
+      console.log('Match deleted successfully')
       await fetchData()
     } catch (err: any) {
+      console.error('Delete error:', err)
       setError(err.response?.data?.detail || 'Failed to delete match')
     }
   }
@@ -573,7 +577,7 @@ const MatchingInterface: React.FC = () => {
                     {/* Action Button */}
                     <div>
                       <button
-                        onClick={() => handleDeleteMatch(match.id)}
+                        onClick={(e) => handleDeleteMatch(match.id, e)}
                         className="text-red-600 hover:text-red-800 text-sm"
                       >
                         Delete

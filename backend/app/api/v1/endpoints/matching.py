@@ -1,8 +1,10 @@
+"""
+Matching API Endpoints - Simplified for Semantic Matching
+"""
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
-import asyncio
 import time
 
 from app.core.database import get_db
@@ -10,7 +12,7 @@ from app.schemas.match import (
     Match, MatchCreate, MatchList, BulkMatchRequest, 
     BulkMatchResponse, MatchExplanation, MatchStatistics, SingleMatchRequest
 )
-from app.services.matching_service import MatchingService
+from app.services.matching_engine import MatchingEngine, matching_engine
 from app.services.resume_parser import ParsedResume, ContactInfo, WorkExperience, Education
 from app.services.job_scraper import JobDescription
 from app.models.resume import Resume as ResumeModel
@@ -19,18 +21,37 @@ from app.models.match import Match as MatchModel
 
 router = APIRouter()
 
-# Service instances will be created on-demand to avoid startup delays
+
+def _get_confidence_level(overall_score: float) -> str:
+    """Convert overall score to confidence level tag"""
+    if overall_score >= 0.7:
+        return "high"
+    elif overall_score >= 0.4:
+        return "medium"
+    return "low"
+
+
+def _generate_recommendation(score: float) -> str:
+    """Generate recommendation based on score"""
+    if score >= 0.8:
+        return "Excellent match - highly recommended for interview"
+    elif score >= 0.6:
+        return "Good match - consider for interview"
+    elif score >= 0.4:
+        return "Moderate match - review skills carefully"
+    return "Low match - may not meet requirements"
+
 
 @router.post("/match", response_model=dict)
-async def match_resume_to_job_v2(
+async def match_resume_to_job(
     request: SingleMatchRequest,
     db: Session = Depends(get_db)
 ):
     """
-    Match a specific resume to a specific job description using request body.
+    Match a specific resume to a specific job description.
     
-    - **resume_id**: ID of the resume to match
-    - **job_id**: ID of the job description to match against
+    - **resume_id**: ID of the resume
+    - **job_id**: ID of the job description
     - Returns: Match result with detailed scoring
     """
     try:
@@ -44,143 +65,97 @@ async def match_resume_to_job_v2(
             raise HTTPException(status_code=404, detail="Job description not found")
         
         # Check if resume is processed
-        if resume.status != "completed" or not resume.structured_data:
+        if resume.status != "completed" or not resume.extracted_text:
             raise HTTPException(status_code=400, detail="Resume not processed yet")
         
-        # Convert database models to service models
-        parsed_resume = convert_db_resume_to_parsed(resume)
-        job_desc = convert_db_job_to_service(job)
+        # Get text content
+        resume_text = resume.extracted_text
+        job_text = f"{job.title}\n{job.description}\n{job.requirements or ''}"
         
-        # Initialize matching service on-demand
-        matching_service = MatchingService()
+        # Calculate match using new engine
+        match_result = matching_engine.match(resume_text, job_text)
         
-        # Calculate match
-        match_result = matching_service.calculate_match_score(parsed_resume, job_desc)
-        
-        # Check if match already exists and update it, otherwise create new one
+        # Check if match already exists
         existing_match = db.query(MatchModel).filter(
             MatchModel.resume_id == request.resume_id,
             MatchModel.job_id == request.job_id
         ).first()
         
         if existing_match:
-            # Update existing match
-            existing_match.overall_score = match_result.match_score.overall_score * 100
-            existing_match.skills_score = match_result.match_score.skills_score * 100
-            existing_match.experience_score = match_result.match_score.experience_score * 100
-            existing_match.education_score = match_result.match_score.education_score * 100
-            existing_match.additional_score = match_result.match_score.additional_score * 100
+            # Update existing match (scores stored as 0-1)
+            existing_match.overall_score = match_result.score.overall
+            existing_match.skills_score = match_result.score.skills
+            existing_match.experience_score = match_result.score.experience
+            existing_match.education_score = match_result.score.education
+            existing_match.additional_score = match_result.score.semantic
             existing_match.matched_skills = {"skills": match_result.matched_skills}
             existing_match.missing_skills = {"skills": match_result.missing_skills}
             existing_match.skill_overlap_count = len(match_result.matched_skills)
             existing_match.total_required_skills = len(match_result.matched_skills) + len(match_result.missing_skills)
-            existing_match.explanation = {"explanation": match_result.match_score.explanation}
-            existing_match.confidence_level = _get_confidence_level(match_result.match_score.confidence)
-            existing_match.recommendation = _generate_recommendation(match_result.match_score.overall_score)
+            existing_match.explanation = {"explanation": match_result.explanation}
+            existing_match.confidence_level = _get_confidence_level(match_result.score.overall)
+            existing_match.recommendation = _generate_recommendation(match_result.score.overall)
             existing_match.updated_at = datetime.utcnow()
+            db.commit()
             db_match = existing_match
         else:
-            # Create new match
+            # Create new match (scores stored as 0-1)
             db_match = MatchModel(
                 resume_id=request.resume_id,
                 job_id=request.job_id,
-                overall_score=match_result.match_score.overall_score * 100,  # Convert to 0-100 scale
-                skills_score=match_result.match_score.skills_score * 100,
-                experience_score=match_result.match_score.experience_score * 100,
-                education_score=match_result.match_score.education_score * 100,
-                additional_score=match_result.match_score.additional_score * 100,
+                overall_score=match_result.score.overall,
+                skills_score=match_result.score.skills,
+                experience_score=match_result.score.experience,
+                education_score=match_result.score.education,
+                additional_score=match_result.score.semantic,
                 matched_skills={"skills": match_result.matched_skills},
                 missing_skills={"skills": match_result.missing_skills},
                 skill_overlap_count=len(match_result.matched_skills),
                 total_required_skills=len(match_result.matched_skills) + len(match_result.missing_skills),
-                explanation={"explanation": match_result.match_score.explanation},
-                confidence_level=_get_confidence_level(match_result.match_score.confidence),
-                recommendation=_generate_recommendation(match_result.match_score.overall_score),
+                explanation={"explanation": match_result.explanation},
+                confidence_level=_get_confidence_level(match_result.score.overall),
+                recommendation=_generate_recommendation(match_result.score.overall),
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow()
             )
             db.add(db_match)
+            db.commit()
+            db.refresh(db_match)
         
-        db.commit()
-        db.refresh(db_match)
-        
-        # Return detailed match result
         return {
             "match_id": db_match.id,
-            "resume_id": request.resume_id,
-            "job_id": request.job_id,
-            "overall_score": match_result.match_score.overall_score,
-            "score_breakdown": {
-                "skills_score": match_result.match_score.skills_score,
-                "experience_score": match_result.match_score.experience_score,
-                "education_score": match_result.match_score.education_score,
-                "additional_score": match_result.match_score.additional_score
+            "overall_score": match_result.score.overall,
+            "scores": {
+                "semantic_similarity": match_result.score.semantic,
+                "skills_match": match_result.score.skills,
+                "experience_match": match_result.score.experience,
+                "education_match": match_result.score.education
             },
             "matched_skills": match_result.matched_skills,
             "missing_skills": match_result.missing_skills,
-            "confidence": match_result.match_score.confidence,
-            "explanation": match_result.match_score.explanation,
-            "created_at": match_result.created_at.isoformat()
+            "skills_analysis": match_result.skill_details,
+            "confidence": match_result.score.confidence,
+            "explanation": match_result.explanation,
+            "recommendation": _generate_recommendation(match_result.score.overall)
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Matching failed: {str(e)}")
 
-@router.post("/match-body", response_model=dict)
-async def match_resume_to_job_body(
-    match_request: SingleMatchRequest,
-    db: Session = Depends(get_db),
-):
-    """
-    Match a single resume to a single job description using the request body.
-    - **match_request**: Object containing resume_id and job_id
-    """
-    try:
-        resume = db.query(ResumeModel).filter(ResumeModel.id == match_request.resume_id).first()
-        job = db.query(JobDescriptionModel).filter(JobDescriptionModel.id == match_request.job_id).first()
 
-        if not resume or not job:
-            raise HTTPException(status_code=404, detail="Resume or Job not found")
-
-        if resume.status != "completed" or not resume.structured_data:
-            raise HTTPException(status_code=400, detail="Resume not processed yet")
-
-        parsed_resume = convert_db_resume_to_parsed(resume)
-        job_desc = convert_db_job_to_service(job)
-        
-        # Initialize matching service on-demand
-        matching_service = MatchingService()
-        match_result = matching_service.calculate_match_score(parsed_resume, job_desc)
-
-        return {
-            "overall_score": match_result.match_score.overall_score,
-            "skills_score": match_result.match_score.skills_score,
-            "experience_score": match_result.match_score.experience_score,
-            "education_score": match_result.match_score.education_score,
-            "matched_skills": match_result.matched_skills,
-            "missing_skills": match_result.missing_skills,
-            "confidence": match_result.match_score.confidence,
-            "explanation": match_result.match_score.explanation,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error occurred: {str(e)}")
-
-@router.post("/bulk-match", response_model=BulkMatchResponse)
+@router.post("/bulk-match", response_model=dict)
 async def bulk_match_resumes_to_jobs(
     match_request: BulkMatchRequest,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
     Perform bulk matching of multiple resumes against multiple jobs.
-    
-    - **match_request**: Bulk matching request with resume IDs, job IDs, and options
-    - Returns: Bulk matching results
     """
     try:
         start_time = time.time()
         
-        # Validate input
         if not match_request.resume_ids or not match_request.job_ids:
             raise HTTPException(status_code=400, detail="Resume IDs and Job IDs are required")
         
@@ -196,116 +171,90 @@ async def bulk_match_resumes_to_jobs(
         
         if not resumes:
             raise HTTPException(status_code=404, detail="No processed resumes found")
-        
         if not jobs:
             raise HTTPException(status_code=404, detail="No job descriptions found")
         
-        # Convert to service models
-        parsed_resumes = [convert_db_resume_to_parsed(resume) for resume in resumes]
-        job_descriptions = [convert_db_job_to_service(job) for job in jobs]
+        matches = []
         
-        # Initialize matching service on-demand
-        matching_service = MatchingService()
+        # Perform matching for each job-resume pair
+        for job in jobs:
+            job_text = f"{job.title}\n{job.description}\n{job.requirements or ''}"
+            
+            for resume in resumes:
+                # Calculate match
+                match_result = matching_engine.match(resume.extracted_text, job_text)
+                
+                if match_result.score.overall >= match_request.min_score_threshold:
+                    # Check for existing match
+                    existing = db.query(MatchModel).filter(
+                        MatchModel.resume_id == resume.id,
+                        MatchModel.job_id == job.id
+                    ).first()
+                    
+                    if existing:
+                        # Update existing (scores stored as 0-1)
+                        existing.overall_score = match_result.score.overall
+                        existing.skills_score = match_result.score.skills
+                        existing.experience_score = match_result.score.experience
+                        existing.education_score = match_result.score.education
+                        existing.additional_score = match_result.score.semantic
+                        existing.matched_skills = {"skills": match_result.matched_skills}
+                        existing.missing_skills = {"skills": match_result.missing_skills}
+                        existing.updated_at = datetime.utcnow()
+                        db_match = existing
+                    else:
+                        # Save to database (scores stored as 0-1)
+                        db_match = MatchModel(
+                            resume_id=resume.id,
+                            job_id=job.id,
+                            overall_score=match_result.score.overall,
+                            skills_score=match_result.score.skills,
+                            experience_score=match_result.score.experience,
+                            education_score=match_result.score.education,
+                            additional_score=match_result.score.semantic,
+                            matched_skills={"skills": match_result.matched_skills},
+                            missing_skills={"skills": match_result.missing_skills},
+                            skill_overlap_count=len(match_result.matched_skills),
+                            total_required_skills=len(match_result.matched_skills) + len(match_result.missing_skills),
+                            explanation={"explanation": match_result.explanation},
+                            confidence_level=_get_confidence_level(match_result.score.overall),
+                            recommendation=_generate_recommendation(match_result.score.overall),
+                            created_at=datetime.utcnow(),
+                            updated_at=datetime.utcnow()
+                        )
+                        db.add(db_match)
+                    
+                    matches.append({
+                        "resume_id": resume.id,
+                        "job_id": job.id,
+                        "overall_score": match_result.score.overall,
+                        "matched_skills": match_result.matched_skills
+                    })
         
-        # Perform bulk matching
-        match_results = await matching_service.bulk_match(
-            parsed_resumes,
-            job_descriptions,
-            match_request.min_score_threshold  # Already in 0-1 scale
-        )
-        
-        # Save matches to database
-        successful_matches = []
-        failed_matches = []
-        
-        for match_result in match_results:
-            try:
-                # Find corresponding database IDs
-                resume_id = next(r.id for r in resumes if str(hash(r.extracted_text[:100])) == match_result.resume_id)
-                job_id = next(j.id for j in jobs if (j.id == int(match_result.job_id) if match_result.job_id.isdigit() else False))
-                
-                db_match = MatchModel(
-                    resume_id=resume_id,
-                    job_id=job_id,
-                    overall_score=match_result.match_score.overall_score * 100,
-                    skills_score=match_result.match_score.skills_score * 100,
-                    experience_score=match_result.match_score.experience_score * 100,
-                    education_score=match_result.match_score.education_score * 100,
-                    additional_score=match_result.match_score.additional_score * 100,
-                    matched_skills={"skills": match_result.matched_skills},
-                    missing_skills={"skills": match_result.missing_skills},
-                    skill_overlap_count=len(match_result.matched_skills),
-                    total_required_skills=len(match_result.matched_skills) + len(match_result.missing_skills),
-                    explanation={"explanation": match_result.match_score.explanation},
-                    confidence_level=_get_confidence_level(match_result.match_score.confidence),
-                    recommendation=_generate_recommendation(match_result.match_score.overall_score),
-                    created_at=datetime.utcnow(),
-                    updated_at=datetime.utcnow()
-                )
-                
-                db.add(db_match)
-                db.commit()
-                db.refresh(db_match)
-                
-                # Convert to API format (0.0-1.0 scale)
-                match_dict = {
-                    "id": db_match.id,
-                    "resume_id": db_match.resume_id,
-                    "job_id": db_match.job_id,
-                    "overall_score": db_match.overall_score / 100.0,
-                    "skills_score": db_match.skills_score / 100.0 if db_match.skills_score else None,
-                    "experience_score": db_match.experience_score / 100.0 if db_match.experience_score else None,
-                    "education_score": db_match.education_score / 100.0 if db_match.education_score else None,
-                    "additional_score": db_match.additional_score / 100.0 if db_match.additional_score else None,
-                    "matched_skills": db_match.matched_skills,
-                    "missing_skills": db_match.missing_skills,
-                    "skill_overlap_count": db_match.skill_overlap_count,
-                    "total_required_skills": db_match.total_required_skills,
-                    "explanation": db_match.explanation,
-                    "confidence_level": db_match.confidence_level,
-                    "recommendation": db_match.recommendation,
-                    "created_at": db_match.created_at,
-                    "updated_at": db_match.updated_at
-                }
-                successful_matches.append(Match.model_validate(match_dict))
-                
-            except Exception as e:
-                failed_matches.append({
-                    "resume_id": match_result.resume_id,
-                    "job_id": match_result.job_id,
-                    "error": str(e)
-                })
+        db.commit()
         
         processing_time = time.time() - start_time
         
-        return BulkMatchResponse(
-            successful_matches=successful_matches,
-            failed_matches=failed_matches,
-            total_matches=len(successful_matches),
-            processing_time=processing_time,
-            summary={
-                "total_resumes_processed": len(resumes),
-                "total_jobs_processed": len(jobs),
-                "matches_above_threshold": len(successful_matches),
-                "average_processing_time": processing_time / len(match_results) if match_results else 0
-            }
-        )
+        return {
+            "total_matches": len(matches),
+            "matches": matches,
+            "processing_time_seconds": round(processing_time, 2)
+        }
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Bulk matching failed: {str(e)}")
 
-@router.get("/job/{job_id}/candidates", response_model=List[dict])
-async def get_ranked_candidates_for_job(
+
+@router.get("/job/{job_id}/candidates")
+async def get_ranked_candidates(
     job_id: int,
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db)
 ):
     """
     Get ranked candidates for a specific job.
-    
-    - **job_id**: ID of the job description
-    - **limit**: Maximum number of candidates to return
-    - Returns: List of ranked candidates
     """
     try:
         # Get all matches for this job
@@ -316,63 +265,32 @@ async def get_ranked_candidates_for_job(
         if not matches:
             return []
         
-        # Convert to service models for ranking
-        service_matches = []
-        for match in matches:
-            # Create match result from database
-            from app.services.matching_service import MatchResult, MatchScore
+        results = []
+        for rank, match in enumerate(matches, 1):
+            resume = db.query(ResumeModel).filter(ResumeModel.id == match.resume_id).first()
             
-            match_score = MatchScore(
-                overall_score=match.overall_score / 100.0,
-                skills_score=match.skills_score / 100.0,
-                experience_score=match.experience_score / 100.0,
-                education_score=match.education_score / 100.0,
-                additional_score=match.additional_score / 100.0,
-                confidence=0.8,  # Default confidence
-                explanation=match.explanation.get('explanation', '') if match.explanation else ''
-            )
+            candidate_name = "Unknown"
+            if resume and resume.structured_data:
+                contact_info = resume.structured_data.get('contact_info', {})
+                candidate_name = contact_info.get('full_name', 'Unknown')
             
-            match_result = MatchResult(
-                resume_id=str(match.resume_id),
-                job_id=str(match.job_id),
-                match_score=match_score,
-                matched_skills=match.matched_skills.get('skills', []) if match.matched_skills else [],
-                missing_skills=match.missing_skills.get('skills', []) if match.missing_skills else [],
-                created_at=match.created_at
-            )
-            
-            service_matches.append(match_result)
-        
-        # Initialize matching service on-demand
-        matching_service = MatchingService()
-        
-        # Rank candidates
-        ranked_candidates = matching_service.rank_candidates(service_matches, str(job_id))
-        
-        # Convert to response format
-        result = []
-        for candidate in ranked_candidates:
-            # Get resume info
-            resume = db.query(ResumeModel).filter(ResumeModel.id == int(candidate.resume_id)).first()
-            
-            result.append({
-                "rank": candidate.rank,
-                "percentile": candidate.percentile,
-                "resume_id": candidate.resume_id,
-                "candidate_name": resume.structured_data.get('contact_info', {}).get('full_name', 'Unknown') if resume.structured_data else 'Unknown',
-                "overall_score": candidate.match_result.match_score.overall_score,
-                "skills_score": candidate.match_result.match_score.skills_score,
-                "experience_score": candidate.match_result.match_score.experience_score,
-                "education_score": candidate.match_result.match_score.education_score,
-                "matched_skills": candidate.match_result.matched_skills,
-                "missing_skills": candidate.match_result.missing_skills,
-                "explanation": candidate.match_result.match_score.explanation
+            results.append({
+                "rank": rank,
+                "resume_id": match.resume_id,
+                "candidate_name": candidate_name,
+                "overall_score": match.overall_score / 100.0,
+                "skills_score": match.skills_score / 100.0,
+                "experience_score": match.experience_score / 100.0,
+                "matched_skills": match.matched_skills.get('skills', []) if match.matched_skills else [],
+                "missing_skills": match.missing_skills.get('skills', []) if match.missing_skills else [],
+                "recommendation": match.recommendation
             })
         
-        return result
+        return results
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Ranking failed: {str(e)}")
+
 
 @router.get("/", response_model=MatchList)
 async def list_matches(
@@ -385,334 +303,80 @@ async def list_matches(
 ):
     """
     List all matches with pagination and filtering.
-    
-    - **skip**: Number of records to skip
-    - **limit**: Number of records to return
-    - **resume_id**: Filter by resume ID
-    - **job_id**: Filter by job ID
-    - **min_score**: Filter by minimum score
-    - Returns: Paginated list of matches
     """
     query = db.query(MatchModel)
     
-    # Apply filters
     if resume_id:
         query = query.filter(MatchModel.resume_id == resume_id)
     if job_id:
         query = query.filter(MatchModel.job_id == job_id)
-    if min_score is not None:
+    if min_score:
         query = query.filter(MatchModel.overall_score >= min_score)
     
     total = query.count()
-    matches = query.offset(skip).limit(limit).all()
+    matches = query.order_by(MatchModel.overall_score.desc()).offset(skip).limit(limit).all()
     
-    # Convert matches to API format (0.0-1.0 scale)
-    api_matches = []
-    for match in matches:
-        match_dict = {
-            "id": match.id,
-            "resume_id": match.resume_id,
-            "job_id": match.job_id,
-            "overall_score": match.overall_score / 100.0,
-            "skills_score": match.skills_score / 100.0 if match.skills_score else None,
-            "experience_score": match.experience_score / 100.0 if match.experience_score else None,
-            "education_score": match.education_score / 100.0 if match.education_score else None,
-            "additional_score": match.additional_score / 100.0 if match.additional_score else None,
-            "matched_skills": match.matched_skills,
-            "missing_skills": match.missing_skills,
-            "skill_overlap_count": match.skill_overlap_count,
-            "total_required_skills": match.total_required_skills,
-            "explanation": match.explanation,
-            "confidence_level": match.confidence_level,
-            "recommendation": match.recommendation,
-            "created_at": match.created_at,
-            "updated_at": match.updated_at
-        }
-        api_matches.append(Match.model_validate(match_dict))
+    # Calculate pagination info
+    page = (skip // limit) + 1 if limit > 0 else 1
+    pages = (total + limit - 1) // limit if limit > 0 else 1
     
     return MatchList(
-        items=api_matches,
+        items=[Match.model_validate(m) for m in matches],
         total=total,
-        page=skip // limit + 1,
+        page=page,
         size=limit,
-        pages=(total + limit - 1) // limit
+        pages=pages
     )
+
 
 @router.get("/{match_id}", response_model=Match)
-async def get_match(
-    match_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    Get a specific match by ID.
-    
-    - **match_id**: ID of the match
-    - Returns: Match details
-    """
+async def get_match(match_id: int, db: Session = Depends(get_db)):
+    """Get a specific match by ID."""
     match = db.query(MatchModel).filter(MatchModel.id == match_id).first()
-    
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
-    
-    # Convert to API format (0.0-1.0 scale)
-    match_dict = {
-        "id": match.id,
-        "resume_id": match.resume_id,
-        "job_id": match.job_id,
-        "overall_score": match.overall_score / 100.0,
-        "skills_score": match.skills_score / 100.0 if match.skills_score else None,
-        "experience_score": match.experience_score / 100.0 if match.experience_score else None,
-        "education_score": match.education_score / 100.0 if match.education_score else None,
-        "additional_score": match.additional_score / 100.0 if match.additional_score else None,
-        "matched_skills": match.matched_skills,
-        "missing_skills": match.missing_skills,
-        "skill_overlap_count": match.skill_overlap_count,
-        "total_required_skills": match.total_required_skills,
-        "explanation": match.explanation,
-        "confidence_level": match.confidence_level,
-        "recommendation": match.recommendation,
-        "created_at": match.created_at,
-        "updated_at": match.updated_at
-    }
-    
-    return Match.model_validate(match_dict)
+    return Match.model_validate(match)
 
-@router.get("/{match_id}/explanation", response_model=MatchExplanation)
-async def get_match_explanation(
-    match_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    Get detailed explanation for a match.
-    
-    - **match_id**: ID of the match
-    - Returns: Detailed match explanation
-    """
-    match = db.query(MatchModel).filter(MatchModel.id == match_id).first()
-    
-    if not match:
-        raise HTTPException(status_code=404, detail="Match not found")
-    
-    # Calculate skill overlap percentage
-    matched_skills = match.matched_skills.get('skills', []) if match.matched_skills else []
-    missing_skills = match.missing_skills.get('skills', []) if match.missing_skills else []
-    total_skills = len(matched_skills) + len(missing_skills)
-    skill_overlap_percentage = (len(matched_skills) / total_skills * 100) if total_skills > 0 else 0
-    
-    return MatchExplanation(
-        overall_score=match.overall_score / 100.0,
-        score_breakdown={
-            "skills": match.skills_score / 100.0,
-            "experience": match.experience_score / 100.0,
-            "education": match.education_score / 100.0,
-            "additional": match.additional_score / 100.0
-        },
-        matched_skills=matched_skills,
-        missing_skills=missing_skills,
-        skill_overlap_percentage=skill_overlap_percentage,
-        experience_match={"score": match.experience_score / 100.0},
-        education_match={"score": match.education_score / 100.0},
-        recommendations=_generate_detailed_recommendations(match)
-    )
 
 @router.delete("/{match_id}")
-async def delete_match(
-    match_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    Delete a match.
-    
-    - **match_id**: ID of the match to delete
-    - Returns: Deletion confirmation
-    """
+async def delete_match(match_id: int, db: Session = Depends(get_db)):
+    """Delete a match."""
     match = db.query(MatchModel).filter(MatchModel.id == match_id).first()
-    
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
-    
     db.delete(match)
     db.commit()
-    
-    return {"message": "Match deleted successfully"}
+    return {"status": "deleted", "id": match_id}
 
-@router.get("/statistics/overview", response_model=MatchStatistics)
-async def get_match_statistics(
-    db: Session = Depends(get_db)
-):
-    """
-    Get overall matching statistics.
+
+@router.get("/statistics/overview")
+async def get_match_statistics(db: Session = Depends(get_db)):
+    """Get overall matching statistics."""
+    from sqlalchemy import func
     
-    - Returns: Match statistics and trends
-    """
-    try:
-        # Get all matches
-        matches = db.query(MatchModel).all()
-        
-        if not matches:
-            return MatchStatistics(
-                total_matches=0,
-                average_score=0.0,
-                score_distribution={},
-                top_matched_skills=[],
-                match_trends={}
-            )
-        
-        # Calculate statistics
-        total_matches = len(matches)
-        average_score = sum(match.overall_score for match in matches) / total_matches
-        
-        # Score distribution
-        score_ranges = {
-            "0-20": 0, "21-40": 0, "41-60": 0, "61-80": 0, "81-100": 0
+    total_matches = db.query(MatchModel).count()
+    
+    if total_matches == 0:
+        return {
+            "total_matches": 0,
+            "average_score": 0,
+            "high_matches": 0,
+            "medium_matches": 0,
+            "low_matches": 0
         }
-        
-        for match in matches:
-            score = match.overall_score
-            if score <= 20:
-                score_ranges["0-20"] += 1
-            elif score <= 40:
-                score_ranges["21-40"] += 1
-            elif score <= 60:
-                score_ranges["41-60"] += 1
-            elif score <= 80:
-                score_ranges["61-80"] += 1
-            else:
-                score_ranges["81-100"] += 1
-        
-        # Top matched skills
-        skill_counts = {}
-        for match in matches:
-            if match.matched_skills and 'skills' in match.matched_skills:
-                for skill in match.matched_skills['skills']:
-                    skill_counts[skill] = skill_counts.get(skill, 0) + 1
-        
-        top_skills = [
-            {"skill": skill, "count": count}
-            for skill, count in sorted(skill_counts.items(), key=lambda x: x[1], reverse=True)[:10]
-        ]
-        
-        return MatchStatistics(
-            total_matches=total_matches,
-            average_score=average_score,
-            score_distribution=score_ranges,
-            top_matched_skills=top_skills,
-            match_trends={"trend": "stable"}  # Placeholder
-        )
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Statistics calculation failed: {str(e)}")
-
-# Helper functions
-def convert_db_resume_to_parsed(resume: ResumeModel) -> ParsedResume:
-    """Convert database resume to ParsedResume service model"""
-    if not resume.structured_data:
-        raise ValueError("Resume not processed")
     
-    data = resume.structured_data
+    avg_score = db.query(func.avg(MatchModel.overall_score)).scalar() or 0
+    high_matches = db.query(MatchModel).filter(MatchModel.overall_score >= 80).count()
+    medium_matches = db.query(MatchModel).filter(
+        MatchModel.overall_score >= 50,
+        MatchModel.overall_score < 80
+    ).count()
+    low_matches = db.query(MatchModel).filter(MatchModel.overall_score < 50).count()
     
-    # Create contact info
-    contact_info = ContactInfo(
-        full_name=data.get('contact_info', {}).get('full_name', ''),
-        email=data.get('contact_info', {}).get('email', ''),
-        phone=data.get('contact_info', {}).get('phone', ''),
-        address=data.get('contact_info', {}).get('location', '')
-    )
-    
-    # Create work experience
-    work_experience = []
-    for exp_data in data.get('work_experience', []):
-        work_exp = WorkExperience(
-            title=exp_data.get('title', ''),
-            company=exp_data.get('company', ''),
-            location=exp_data.get('location', ''),
-            start_date=exp_data.get('start_date', ''),
-            end_date=exp_data.get('end_date', ''),
-            description=exp_data.get('description', '')
-        )
-        work_experience.append(work_exp)
-    
-    # Create education
-    education = []
-    for edu_data in data.get('education', []):
-        edu = Education(
-            degree=edu_data.get('degree', ''),
-            field_of_study=edu_data.get('field_of_study', ''),
-            institution=edu_data.get('institution', ''),
-            graduation_date=edu_data.get('graduation_date', edu_data.get('graduation_year', ''))
-        )
-        education.append(edu)
-    
-    return ParsedResume(
-        contact_info=contact_info,
-        work_experience=work_experience,
-        education=education,
-        skills=data.get('skills', {}),
-        certifications=data.get('certifications', []),
-        summary=data.get('summary', ''),
-        raw_text=resume.extracted_text or '',
-        processing_metadata=data.get('processing_metadata', {})
-    )
-
-def convert_db_job_to_service(job: JobDescriptionModel) -> JobDescription:
-    """Convert database job to JobDescription service model"""
-    skills = []
-    if job.extracted_skills and 'skills' in job.extracted_skills:
-        # Handle nested skills structure: extracted_skills['skills']['skills']
-        skills_data = job.extracted_skills['skills']
-        if isinstance(skills_data, dict) and 'skills' in skills_data:
-            # Extract skill names from the nested structure
-            skills = [skill['skill'] for skill in skills_data['skills'] if isinstance(skill, dict) and 'skill' in skill]
-        elif isinstance(skills_data, list):
-            # Handle case where skills are directly in a list
-            skills = skills_data
-    
-    return JobDescription(
-        job_id=str(job.id),
-        title=job.title,
-        company=job.company,
-        description=job.description,
-        requirements=job.requirements or '',
-        location=job.location,
-        skills=skills,
-        salary_range=job.salary_range,
-        job_type=job.employment_type,  # Map employment_type to job_type
-        experience_level=job.experience_level
-    )
-
-def _get_confidence_level(confidence: float) -> str:
-    """Convert confidence score to level"""
-    if confidence >= 0.8:
-        return "high"
-    elif confidence >= 0.6:
-        return "medium"
-    else:
-        return "low"
-
-def _generate_recommendation(score: float) -> str:
-    """Generate recommendation based on score"""
-    if score >= 0.8:
-        return "Excellent match - highly recommended for consideration"
-    elif score >= 0.6:
-        return "Good match - recommended for review"
-    elif score >= 0.4:
-        return "Moderate match - may be suitable with additional evaluation"
-    else:
-        return "Low match - significant gaps in requirements"
-
-def _generate_detailed_recommendations(match: MatchModel) -> List[str]:
-    """Generate detailed recommendations for improvement"""
-    recommendations = []
-    
-    if match.skills_score < 70:
-        missing_skills = match.missing_skills.get('skills', []) if match.missing_skills else []
-        if missing_skills:
-            recommendations.append(f"Consider developing skills in: {', '.join(missing_skills[:3])}")
-    
-    if match.experience_score < 70:
-        recommendations.append("Consider gaining more relevant experience in the field")
-    
-    if match.education_score < 70:
-        recommendations.append("Consider pursuing additional education or certifications")
-    
-    return recommendations
+    return {
+        "total_matches": total_matches,
+        "average_score": round(avg_score, 2),
+        "high_matches": high_matches,
+        "medium_matches": medium_matches,
+        "low_matches": low_matches
+    }

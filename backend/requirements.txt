@@ -1,86 +1,54 @@
 # FastAPI and server
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-python-multipart==0.0.6
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
 
 # Database
-sqlalchemy==2.0.23
-alembic==1.12.1
-psycopg2-binary==2.9.9
+sqlalchemy>=2.0.23
+alembic>=1.12.1
+psycopg2-binary>=2.9.9
 
 # Redis and Celery
-redis==5.0.1
-celery==5.3.4
+redis>=5.0.1
+celery>=5.3.4
 
 # NLP Libraries
-spacy==3.7.2
-nltk==3.8.1
-scikit-learn==1.3.2
-transformers==4.54.1
-sentence-transformers==5.0.0
-torch==2.1.1
-torchvision==0.16.1
-huggingface-hub==0.34.3
-tokenizers==0.21.4
-safetensors==0.5.3
+spacy>=3.7.0
+nltk>=3.8.1
+scikit-learn>=1.3.0
+transformers>=4.35.0
+sentence-transformers>=2.2.0
+torch>=2.2.0
+huggingface-hub>=0.20.0
 
 # Document Processing
-pdfplumber==0.10.3
-python-docx==1.1.0
-PyPDF2==3.0.1
-pdfminer.six==20221105
-pypdfium2==4.30.0
-lxml==6.0.0
-pillow==11.3.0
+pdfplumber>=0.10.0
+python-docx>=1.1.0
+PyPDF2>=3.0.1
+pillow>=10.0.0
 
 # Web Scraping
-beautifulsoup4==4.12.2
-selenium==4.15.2
-requests==2.31.0
-aiohttp==3.9.1
+beautifulsoup4>=4.12.0
+requests>=2.31.0
+aiohttp>=3.9.0
 
 # Data Processing
-pandas==2.1.3
-numpy==1.25.2
+pandas>=2.1.0
+numpy>=1.24.0
 
 # Authentication and Security
-python-jose[cryptography]==3.3.0
-passlib[bcrypt]==1.7.4
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
 
 # Validation
-pydantic==2.5.0
-pydantic-settings==2.1.0
-email-validator==2.1.0
-
-# File type detection
-python-magic==0.4.27
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+email-validator>=2.1.0
 
 # Utility Libraries
-python-dotenv==1.1.1
-PyYAML==6.0.2
-colorama==0.4.6
-click==8.2.1
-typer==0.9.4
-watchfiles==1.1.0
-websockets==15.0.1
-filelock==3.18.0
-fsspec==2025.7.0
-joblib==1.5.1
-tqdm==4.67.1
-regex==2025.7.31
-networkx==3.4.2
-sympy==1.14.0
-scipy==1.15.3
-threadpoolctl==3.6.0
-smart-open==6.4.0
+python-dotenv>=1.0.0
+tqdm>=4.66.0
 
-# Development
-pytest==7.4.3
-pytest-asyncio==0.21.1
-black==23.11.0
-flake8==6.1.0
-psutil==7.0.0
-prometheus_client==0.22.1
-reportlab==4.4.3
-xlsxwriter==3.2.5
-slowapi==0.1.9
+# Testing (optional)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0

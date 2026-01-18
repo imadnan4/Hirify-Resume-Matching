@@ -5,7 +5,7 @@ import asyncio
 import traceback
 from datetime import datetime
 
-from app.services.matching_service import MatchingService
+from app.services.matching_engine import MatchingEngine
 from app.core.database import SessionLocal
 from app.models.resume import Resume
 from app.models.job_description import JobDescription
@@ -48,7 +48,7 @@ def calculate_matches(self, resume_id: int, job_id: int) -> Dict[str, Any]:
                 }
             
             # Initialize matching service
-            matching_service = MatchingService()
+            matching_engine = MatchingEngine()
             
             # Convert database objects to service objects
             self.update_state(state='PROGRESS', meta={'step': 'preparing_data', 'progress': 20})
@@ -101,15 +101,8 @@ def calculate_matches(self, resume_id: int, job_id: int) -> Dict[str, Any]:
             # Calculate match score
             self.update_state(state='PROGRESS', meta={'step': 'calculating_match', 'progress': 50})
             
-            # Run async matching in sync context
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                match_result = loop.run_until_complete(
-                    matching_service.calculate_match_score(parsed_resume, job_description)
-                )
-            finally:
-                loop.close()
+            # Use synchronous matching engine
+            match_result = matching_engine.match(parsed_resume.raw_text, job.description)
             
             # Save match result to database
             self.update_state(state='PROGRESS', meta={'step': 'saving_match', 'progress': 80})
@@ -117,19 +110,17 @@ def calculate_matches(self, resume_id: int, job_id: int) -> Dict[str, Any]:
             db_match = Match(
                 resume_id=resume_id,
                 job_id=job_id,
-                overall_score=match_result.match_score.overall_score,
-                skills_score=match_result.match_score.skills_score,
-                experience_score=match_result.match_score.experience_score,
-                education_score=match_result.match_score.education_score,
-                additional_score=match_result.match_score.additional_score,
+                overall_score=match_result.overall_score,
+                skills_score=match_result.scores.skills_match,
+                experience_score=match_result.scores.experience_match,
+                education_score=match_result.scores.education_match,
+                additional_score=match_result.scores.semantic_similarity,
                 matched_skills=match_result.matched_skills,
                 explanation={
-                    'overall_explanation': match_result.match_score.explanation,
-                    'skills_breakdown': match_result.experience_match,
-                    'experience_breakdown': match_result.experience_match,
-                    'education_breakdown': match_result.education_match,
-                    'skill_gaps': match_result.skill_gaps,
-                    'confidence': match_result.match_score.confidence
+                    'overall_explanation': match_result.explanation,
+                    'skills_breakdown': match_result.skills_analysis,
+                    'skill_gaps': match_result.missing_skills,
+                    'confidence': match_result.confidence
                 }
             )
             

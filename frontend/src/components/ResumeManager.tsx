@@ -135,13 +135,17 @@ const ResumeManager: React.FC = () => {
     }
   }
 
-  const handleDeleteResume = async (resumeId: number) => {
+  const handleDeleteResume = async (resumeId: number, e?: React.MouseEvent) => {
+    e?.stopPropagation()
     if (!confirm('Are you sure you want to delete this resume?')) return
     
     try {
+      console.log('Deleting resume:', resumeId)
       await apiService.deleteResume(resumeId)
+      console.log('Resume deleted successfully')
       await fetchResumes()
     } catch (err: any) {
+      console.error('Delete error:', err)
       setError(err.response?.data?.detail || 'Failed to delete resume')
     }
   }
@@ -358,7 +362,7 @@ const ResumeManager: React.FC = () => {
                       Preview
                     </button>
                     <button
-                      onClick={() => handleDeleteResume(resume.id)}
+                      onClick={(e) => handleDeleteResume(resume.id, e)}
                       className="text-red-600 hover:text-red-800 text-sm"
                     >
                       Delete

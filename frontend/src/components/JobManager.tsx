@@ -62,13 +62,17 @@ const JobManager: React.FC = () => {
   }
 
 
-  const handleDeleteJob = async (jobId: number) => {
+  const handleDeleteJob = async (jobId: number, e?: React.MouseEvent) => {
+    e?.stopPropagation()
     if (!confirm('Are you sure you want to delete this job?')) return
     
     try {
+      console.log('Deleting job:', jobId)
       await apiService.deleteJob(jobId)
+      console.log('Job deleted successfully')
       await fetchJobs()
     } catch (err: any) {
+      console.error('Delete error:', err)
       setError(err.response?.data?.detail || 'Failed to delete job')
     }
   }
@@ -289,7 +293,7 @@ const JobManager: React.FC = () => {
                   
                   <div className="flex items-center space-x-2">
                     <button
-                      onClick={() => handleDeleteJob(job.id)}
+                      onClick={(e) => handleDeleteJob(job.id, e)}
                       className="text-red-600 hover:text-red-800 text-sm"
                     >
                       Delete

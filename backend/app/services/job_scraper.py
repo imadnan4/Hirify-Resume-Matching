@@ -8,8 +8,8 @@ from urllib.parse import urljoin, urlparse
 import re
 from bs4 import BeautifulSoup
 import hashlib
-from .text_preprocessor import TextPreprocessor
-from .skills_extractor import SkillsExtractor
+from .nlp_service import nlp_service
+from .semantic_skills import semantic_skills_extractor
 
 
 @dataclass
@@ -42,8 +42,8 @@ class JobScraper:
     """Advanced job scraping service with multiple source support"""
     
     def __init__(self):
-        self.text_preprocessor = TextPreprocessor()
-        self.skills_extractor = SkillsExtractor()
+        self.nlp_service = nlp_service
+        self.skills_extractor = semantic_skills_extractor
         self.scraped_jobs: Set[str] = set()  # Track scraped job IDs for deduplication
         self.session = None
         

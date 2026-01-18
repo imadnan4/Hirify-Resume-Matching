@@ -10,7 +10,7 @@ from app.schemas.job_description import (
     JobDescriptionList, BulkJobDescriptionCreate
 )
 from app.services.job_scraper import JobScraper
-from app.services.skills_extractor import SkillsExtractor
+from app.services.semantic_skills import semantic_skills_extractor
 from app.models.job_description import JobDescription as JobDescriptionModel
 from app.models.match import Match as MatchModel
 
@@ -418,9 +418,8 @@ async def process_job_background(job_id: int):
         try:
             # Extract skills from job description
             full_text = f"{job.description} {job.requirements or ''}"
-            # Initialize skills extractor on-demand
-            skills_extractor = SkillsExtractor()
-            extracted_skills = skills_extractor.extract_skills(full_text)
+            # Use semantic skills extractor
+            extracted_skills = semantic_skills_extractor.extract_skills(full_text)
             
             # Update job with extracted data
             job.extracted_skills = {

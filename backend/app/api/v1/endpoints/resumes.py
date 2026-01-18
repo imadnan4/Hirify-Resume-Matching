@@ -25,6 +25,7 @@ from app.schemas.resume import (
 )
 from app.services.resume_parser import ResumeParser
 from app.services.document_text_extractor import DocumentTextExtractor
+from app.services.document_validator import DocumentValidator
 from app.models.resume import Resume as ResumeModel
 from app.models.candidate import Candidate as CandidateModel
 
