@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import apiService, { Resume } from '../services/api'
+import { Button } from './ui/button'
+import { Progress } from './ui/progress'
 
 const ResumeManager: React.FC = () => {
   const [resumes, setResumes] = useState<Resume[]>([])
@@ -214,12 +216,9 @@ const ResumeManager: React.FC = () => {
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-red-700">{error}</p>
-            <button 
-              onClick={() => setError(null)}
-              className="mt-2 text-sm text-red-600 hover:text-red-800"
-            >
-              Dismiss
-            </button>
+			<Button onClick={() => setError(null)} variant="destructive" size="sm" >
+				Dismiss
+			</Button>
           </div>
         )}
         
@@ -249,13 +248,9 @@ const ResumeManager: React.FC = () => {
             className="hidden"
           />
           
-          <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="mt-4 bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-            disabled={uploading}
-          >
-            {uploading ? 'Uploading...' : 'Select Files'}
-          </button>
+			<Button variant="info" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="mt-4">
+				{uploading ? 'Uploading...' : 'Select Files'}
+			</Button>
         </div>
         
         {/* Selected Files */}
@@ -270,33 +265,26 @@ const ResumeManager: React.FC = () => {
                     <span className="ml-2 text-sm text-gray-500">({formatFileSize(file.size)})</span>
                   </div>
                   {uploadProgress[file.name] && (
-                    <div className="w-32 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${uploadProgress[file.name]}%` }}
-                      ></div>
-                    </div>
+					<div className="w-32">
+						<Progress value={uploadProgress[file.name]} />
+					</div>
                   )}
                 </div>
               ))}
             </div>
             <div className="mt-4 flex space-x-2">
-              <button
-                onClick={uploadFiles}
-                disabled={uploading}
-                className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
-              >
-                {uploading ? 'Uploading...' : 'Upload Files'}
-              </button>
-              <button
-                onClick={() => {
-                  setSelectedFiles([])
-                  setUploadProgress({})
-                }}
-                className="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition-colors"
-              >
-                Clear
-              </button>
+				<Button onClick={uploadFiles} disabled={uploading} variant="success">
+					{uploading ? 'Uploading...' : 'Upload Files'}
+				</Button>
+				<Button
+					onClick={() => {
+						setSelectedFiles([])
+						setUploadProgress({})
+					}}
+					variant="secondary"
+				>
+					Clear
+				</Button>
             </div>
           </div>
         )}
@@ -306,13 +294,9 @@ const ResumeManager: React.FC = () => {
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-gray-800">Uploaded Resumes</h2>
-          <button
-            onClick={fetchResumes}
-            disabled={loading}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
-          >
-            {loading ? 'Loading...' : 'Refresh'}
-          </button>
+			<Button onClick={fetchResumes} disabled={loading} variant="secondary">
+				{loading ? 'Loading...' : 'Refresh'}
+			</Button>
         </div>
         
         {loading ? (
@@ -349,24 +333,27 @@ const ResumeManager: React.FC = () => {
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleReprocessResume(resume.id)}
-                      className="text-blue-600 hover:text-blue-800 text-sm"
-                    >
-                      Reprocess
-                    </button>
-                    <button
-                      onClick={() => handlePreviewData(resume.id)}
-                      className="text-green-600 hover:text-green-800 text-sm"
-                    >
-                      Preview
-                    </button>
-                    <button
-                      onClick={(e) => handleDeleteResume(resume.id, e)}
-                      className="text-red-600 hover:text-red-800 text-sm"
-                    >
-                      Delete
-                    </button>
+					<Button
+						onClick={() => handleReprocessResume(resume.id)}
+						variant="link"
+						className="text-blue-600"
+					>
+						Reprocess
+					</Button>
+					<Button
+						onClick={() => handlePreviewData(resume.id)}
+						variant="link"
+						className="text-emerald-600"
+					>
+						Preview
+					</Button>
+					<Button
+						onClick={(e) => handleDeleteResume(resume.id, e)}
+						variant="destructive"
+						
+					>
+						Delete
+					</Button>
                   </div>
                 </div>
               </div>
@@ -380,12 +367,14 @@ const ResumeManager: React.FC = () => {
           <div className="bg-white rounded-lg shadow-xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">Extracted Resume Data</h2>
-              <button
-                onClick={() => setIsPreviewOpen(false)}
-                className="text-gray-400 hover:text-gray-600 text-2xl"
-              >
-                ×
-              </button>
+				<Button
+					onClick={() => setIsPreviewOpen(false)}
+					variant="ghost"
+					size="icon"
+					className="text-gray-500"
+				>
+					×
+				</Button>
             </div>
             
             <div className="space-y-6">
@@ -493,12 +482,9 @@ const ResumeManager: React.FC = () => {
             </div>
             
             <div className="mt-8 flex justify-end">
-              <button
-                onClick={() => setIsPreviewOpen(false)}
-                className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                Close
-              </button>
+				<Button onClick={() => setIsPreviewOpen(false)}>
+					Close
+				</Button>
             </div>
           </div>
         </div>

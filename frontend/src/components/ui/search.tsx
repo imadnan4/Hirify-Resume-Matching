@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search as SearchIcon, X, Filter, SortAsc, SortDesc } from 'lucide-react';
+import { Search as SearchIcon, X, Filter, SortDesc } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from './input';
 import { Button } from './button';
@@ -151,12 +151,14 @@ export const Search: React.FC<SearchProps> = ({
               >
                 <Badge variant="secondary" className="gap-1">
                   {filters.find(f => f.key === key)?.label}: {String(value)}
-                  <button
-                    onClick={() => clearFilter(key)}
-                    className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
+					<Button
+						onClick={() => clearFilter(key)}
+						variant="ghost"
+						size="icon-xs"
+						className="ml-1 rounded-full"
+					>
+						<X className="h-3 w-3" />
+					</Button>
                 </Badge>
               </motion.div>
             ))}

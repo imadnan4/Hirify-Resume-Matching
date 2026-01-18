@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import apiService, { Resume, JobDescription, Match } from '../services/api'
+import apiService from '../services/api'
+import { Button } from './ui/button'
 
 interface AnalyticsData {
   matchScoreDistribution: { score: string; count: number }[]
@@ -205,23 +206,16 @@ const Analytics: React.FC = () => {
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-red-700">{error}</p>
-            <button 
-              onClick={() => setError(null)}
-              className="mt-2 text-sm text-red-600 hover:text-red-800"
-            >
-              Dismiss
-            </button>
+			<Button onClick={() => setError(null)} variant="destructive" size="sm" >
+				Dismiss
+			</Button>
           </div>
         )}
         
         <div className="flex justify-end">
-          <button
-            onClick={fetchAnalyticsData}
-            disabled={loading}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
-          >
-            {loading ? 'Loading...' : 'Refresh Data'}
-          </button>
+			<Button onClick={fetchAnalyticsData} disabled={loading} variant="secondary">
+				{loading ? 'Loading...' : 'Refresh Data'}
+			</Button>
         </div>
       </div>
 

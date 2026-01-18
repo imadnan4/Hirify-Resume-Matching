@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
 import apiService from '../services/api'
+import { Button } from './ui/button'
 
 interface DashboardStats {
   totalResumes: number
@@ -24,7 +24,6 @@ const Dashboard: React.FC = () => {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const navigate = useNavigate()
 
   useEffect(() => {
     fetchDashboardStats()
@@ -69,7 +68,7 @@ const Dashboard: React.FC = () => {
 
 
   // Process real data for charts
-  const processTimeSeriesData = (data: any[], type: 'resumes' | 'jobs') => {
+  const processTimeSeriesData = (data: any[]) => {
     if (!data || data.length === 0) return []
     
     // Group data by date
@@ -141,23 +140,16 @@ const Dashboard: React.FC = () => {
         {error && (
           <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-red-700">{error}</p>
-            <button 
-              onClick={() => setError(null)}
-              className="mt-2 text-sm text-red-600 hover:text-red-800"
-            >
-              Dismiss
-            </button>
+			<Button onClick={() => setError(null)} variant="destructive" size="sm" >
+				Dismiss
+			</Button>
           </div>
         )}
 
         <div className="flex justify-end mb-4">
-          <button
-            onClick={fetchDashboardStats}
-            disabled={loading}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
-          >
+			<Button onClick={fetchDashboardStats} disabled={loading} variant="secondary" size="lg">
             {loading ? 'Loading...' : 'Refresh Data'}
-          </button>
+			</Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -190,7 +182,7 @@ const Dashboard: React.FC = () => {
           <div className="bg-gray-50 p-4 rounded-lg">
             <h3 className="text-lg font-medium text-gray-700 mb-3">Resume Upload Trend</h3>
             <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={processTimeSeriesData(stats.resumeData, 'resumes')}>
+              <LineChart data={processTimeSeriesData(stats.resumeData)}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />
@@ -204,7 +196,7 @@ const Dashboard: React.FC = () => {
           <div className="bg-gray-50 p-4 rounded-lg">
             <h3 className="text-lg font-medium text-gray-700 mb-3">Job Posting Trend</h3>
             <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={processTimeSeriesData(stats.jobData, 'jobs')}>
+              <BarChart data={processTimeSeriesData(stats.jobData)}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="date" />
                 <YAxis />

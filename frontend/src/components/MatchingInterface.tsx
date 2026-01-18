@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Play, Users, FileText, Briefcase, TrendingUp, Target, ChevronDown, Filter, Download, RefreshCw } from 'lucide-react'
+import { Users, FileText, TrendingUp, Target } from 'lucide-react'
 import apiService, { Resume, JobDescription, Match } from '../services/api'
 import { Button } from './ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
-import { Badge } from './ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
-import { Progress } from './ui/progress'
 import { AnimatedBarChart, AnimatedPieChart } from './ui/animated-chart'
 
 interface MatchingStats {
@@ -328,7 +326,8 @@ const MatchingInterface: React.FC = () => {
             <Button
               onClick={handleStartMatching}
               disabled={resumes.length === 0 || jobs.length === 0 || matching}
-              className="bg-blue-500 text-white rounded-lg"
+              // className="bg-blue-500 text-white rounded-lg"
+              variant="info"
             >
               {matching ? 'Matching...' : 'Start Matching'}
             </Button>
@@ -339,10 +338,10 @@ const MatchingInterface: React.FC = () => {
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-red-700">{error}</p>
               <Button 
-                variant="ghost" 
+                variant="destructive" 
                 size="sm" 
                 onClick={() => setError(null)}
-                className="mt-2 text-red-600 hover:text-red-800"
+                
               >
                 Dismiss
               </Button>
@@ -364,7 +363,10 @@ const MatchingInterface: React.FC = () => {
                   <p>No processed resumes available for matching</p>
                 </div>
               ) : (
-                <Select onValueChange={(value) => setSelectedSingleResume(parseInt(value))} value={selectedSingleResume?.toString()}>
+                <Select
+                  onValueChange={(value) => setSelectedSingleResume(value ? parseInt(value, 10) : null)}
+                  value={selectedSingleResume?.toString()}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Choose a resume..." />
                   </SelectTrigger>
@@ -390,7 +392,10 @@ const MatchingInterface: React.FC = () => {
                   <p>No job descriptions available for matching</p>
                 </div>
               ) : (
-                <Select onValueChange={(value) => setSelectedSingleJob(parseInt(value))} value={selectedSingleJob?.toString()}>
+                <Select
+                  onValueChange={(value) => setSelectedSingleJob(value ? parseInt(value, 10) : null)}
+                  value={selectedSingleJob?.toString()}
+                >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Choose a job..." />
                   </SelectTrigger>
@@ -576,12 +581,13 @@ const MatchingInterface: React.FC = () => {
 
                     {/* Action Button */}
                     <div>
-                      <button
-                        onClick={(e) => handleDeleteMatch(match.id, e)}
-                        className="text-red-600 hover:text-red-800 text-sm"
-                      >
-                        Delete
-                      </button>
+					<Button
+						onClick={(e) => handleDeleteMatch(match.id, e)}
+						variant="destructive"
+						
+					>
+						Delete
+					</Button>
                     </div>
                   </div>
 
