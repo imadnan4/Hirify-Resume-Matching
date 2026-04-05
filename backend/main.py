@@ -1,33 +1,13 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1 import api_router
+from __future__ import annotations
 
-app = FastAPI(
-    title="Hirify API",
-    description="Intelligent resume parsing and job matching system",
-    version="1.0.0"
-)
+import os
 
-# CORS middleware for frontend communication
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+from app.main import app
 
-# Include API router
-app.include_router(api_router, prefix="/api/v1")
+__all__ = ["app"]
 
-@app.get("/")
-async def root():
-    return {"message": "Hirify API", "status": "running"}
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy", "service": "hirify-api"}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+
+    uvicorn.run("app.main:app", host="0.0.0.0", port=int(os.getenv("PORT", "8000")))

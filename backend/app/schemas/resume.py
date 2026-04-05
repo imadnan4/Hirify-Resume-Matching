@@ -1,95 +1,97 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional, Dict, Any, List, TYPE_CHECKING
+from __future__ import annotations
+
 from datetime import datetime
-from enum import Enum
+from typing import Any, Literal
 
-if TYPE_CHECKING:
-    from .candidate import Candidate
+from pydantic import BaseModel, Field
 
-
-class ResumeStatus(str, Enum):
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
+from app.schemas.common import ORMModel, PaginatedResponse
 
 
-class ResumeBase(BaseModel):
-    filename: str = Field(..., description="Original filename of the resume")
-    file_type: Optional[str] = Field(None, description="File type (pdf, doc, docx)")
-    file_size: Optional[int] = Field(None, description="File size in bytes")
-
-
-class ResumeCreate(ResumeBase):
-    file_path: str = Field(..., description="Path to the uploaded file")
-
-
-class ResumeUpdate(BaseModel):
-    filename: Optional[str] = None
-    status: Optional[ResumeStatus] = None
-    processed_date: Optional[datetime] = None
-    extracted_text: Optional[str] = None
-    structured_data: Optional[Dict[str, Any]] = None
-    processing_errors: Optional[Dict[str, Any]] = None
-
-
-class ResumeInDB(ResumeBase):
-    model_config = ConfigDict(from_attributes=True)
-    
+class ResumeBase(ORMModel):
     id: int
+    filename: str
+    file_type: str
+    file_size: int
     file_path: str
     upload_date: datetime
-    processed_date: Optional[datetime] = None
-    status: ResumeStatus
-    extracted_text: Optional[str] = None
-    structured_data: Optional[Dict[str, Any]] = None
-    processing_errors: Optional[Dict[str, Any]] = None
+    processed_date: datetime | None = None
+    status: Literal["pending", "processing", "completed", "failed"]
+    extracted_text: str | None = None
+    structured_data: dict[str, Any] | None = None
+    processing_errors: dict[str, Any] | None = None
     created_at: datetime
     updated_at: datetime
 
 
-class Resume(ResumeInDB):
-    """Resume schema for API responses"""
-    pass
-
-
-class ResumeWithCandidate(Resume):
-    """Resume schema with candidate information"""
-    candidate: Optional["Candidate"] = None
-
-
-class ResumeList(BaseModel):
-    """Schema for paginated resume list"""
-    items: List[Resume]
-    total: int
-    page: int
-    size: int
-    pages: int
+class ResumeUpdate(BaseModel):
+    filename: str | None = None
+    status: Literal["pending", "processing", "completed", "failed"] | None = None
+    extracted_text: str | None = None
+    structured_data: dict[str, Any] | None = None
+    processing_errors: dict[str, Any] | None = None
 
 
 class ResumeUploadResponse(BaseModel):
-    """Response schema for resume upload"""
     id: int
     filename: str
     file_size: int
-    status: ResumeStatus
+    status: str
     upload_date: datetime
     message: str = "Resume uploaded successfully"
 
 
-class ResumeProcessingStatus(BaseModel):
-    """Schema for resume processing status"""
-    id: int
+class BulkResumeFailure(BaseModel):
     filename: str
-    status: ResumeStatus
-    processed_date: Optional[datetime] = None
-    processing_errors: Optional[Dict[str, Any]] = None
-    progress: Optional[float] = Field(None, description="Processing progress (0-100)")
+    error: str
 
 
-class BulkResumeUpload(BaseModel):
-    """Schema for bulk resume upload response"""
-    successful: List[ResumeUploadResponse]
-    failed: List[Dict[str, Any]]
+class BulkResumeUploadResponse(BaseModel):
+    successful: list[ResumeUploadResponse]
+    failed: list[BulkResumeFailure]
     total_uploaded: int
     total_failed: int
+
+
+class ResumeStatusResponse(BaseModel):
+    id: int
+    filename: str
+    status: str
+    processed_date: datetime | None = None
+    processing_errors: dict[str, Any] | None = None
+    progress: int
+
+
+class ContactInfoPreview(BaseModel):
+    full_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    location: str | None = None
+
+
+class WorkExperiencePreview(BaseModel):
+    job_title: str | None = None
+    company: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    description: str | None = None
+
+
+class EducationPreview(BaseModel):
+    degree: str | None = None
+    field_of_study: str | None = None
+    institution: str | None = None
+    graduation_year: int | None = None
+
+
+class ResumePreviewResponse(BaseModel):
+    contact_info: ContactInfoPreview = Field(default_factory=ContactInfoPreview)
+    summary: str | None = None
+    work_experience: list[WorkExperiencePreview] = Field(default_factory=list)
+    education: list[EducationPreview] = Field(default_factory=list)
+    skills: list[str] = Field(default_factory=list)
+    certifications: list[str] = Field(default_factory=list)
+    processing_metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+ResumeListResponse = PaginatedResponse[ResumeBase]

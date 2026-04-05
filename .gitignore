@@ -64,6 +64,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .npm
+.netlify/
 
 # React
 build/
@@ -176,11 +177,7 @@ uploads/
 *.doc
 *.docx
 
-# ML Models
-models/
-*.pkl
-*.joblib
-*.model
+
 
 # Alembic
 alembic/versions/*.py

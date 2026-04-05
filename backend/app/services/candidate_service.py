@@ -1,0 +1,43 @@
+from __future__ import annotations
+
+from sqlalchemy.orm import Session
+
+from app.models.candidate import Candidate
+from app.models.resume import Resume
+from app.schemas.resume import ResumePreviewResponse
+from app.services.resume_parser import build_candidate_payload
+from app.services.text_processing import dedupe_preserve_order, keyword_overlap_score
+
+
+def upsert_candidate_from_resume(
+    db: Session, *, resume: Resume, preview: ResumePreviewResponse, source_text: str
+) -> Candidate:
+    payload = build_candidate_payload(preview, source_text)
+    candidate = resume.candidate
+    if candidate is None:
+        candidate = Candidate(resume_id=resume.id)
+        db.add(candidate)
+    for field, value in payload.items():
+        setattr(candidate, field, value)
+    return candidate
+
+
+def search_candidates_by_skills(db: Session, searched_skills: list[str], min_matches: int) -> list[dict]:
+    results: list[dict] = []
+    for candidate in db.query(Candidate).all():
+        score, matched, _ = keyword_overlap_score(candidate.skills or [], searched_skills)
+        if len(matched) >= min_matches:
+            results.append(
+                {
+                    "id": candidate.id,
+                    "resume_id": candidate.resume_id,
+                    "full_name": candidate.full_name,
+                    "skill_matches": len(matched),
+                    "matched_skills": dedupe_preserve_order(matched),
+                    "_score": score,
+                }
+            )
+    results.sort(key=lambda item: (-item["_score"], -item["skill_matches"], item["id"]))
+    for result in results:
+        result.pop("_score", None)
+    return results

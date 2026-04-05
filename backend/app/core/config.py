@@ -1,97 +1,121 @@
-from pydantic_settings import BaseSettings
-from pydantic import field_validator
-from typing import List, Optional
-import os
+from __future__ import annotations
+
+import json
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+DEFAULT_DATA_DIR = ROOT_DIR / "data"
+
 
 class Settings(BaseSettings):
-    # API Settings
-    API_V1_STR: str = "/api/v1"
-    PROJECT_NAME: str = "Hirify - AI-Powered Job Matching Platform"
-    VERSION: str = "1.0.0"
-    DESCRIPTION: str = "Intelligent resume parsing and job matching system"
-    
-    # Security
-    SECRET_KEY: str = "your-secret-key-change-in-production"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 8  # 8 days
-    ALGORITHM: str = "HS256"
-    PASSWORD_RESET_TOKEN_EXPIRE_HOURS: int = 24
-    EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS: int = 24
-    
-    # Performance monitoring
-    ENABLE_MEMORY_TRACKING: bool = False
-    SLOW_REQUEST_THRESHOLD: float = 2.0
-    MEMORY_THRESHOLD: int = 100 * 1024 * 1024  # 100MB
-    HIGH_CPU_THRESHOLD: float = 80.0
-    HIGH_MEMORY_THRESHOLD: float = 80.0
-    MAX_DB_CONNECTIONS: int = 100
-    MEMORY_LEAK_THRESHOLD: int = 10 * 1024 * 1024  # 10MB
-    SLOW_OPERATION_THRESHOLD: float = 5.0
-    MONITORING_INTERVAL: int = 60
-    
-    # Database
-    DATABASE_URL: str = "sqlite:///./hirify.db"
-    
-    # Redis (optional - only needed for production)
-    REDIS_URL: str = "redis://localhost:6379/0"
-    
-    # Celery (optional - only needed for production)
-    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
-    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
-    
-    # Processing mode (sync for development, async for production)
-    USE_BACKGROUND_PROCESSING: bool = False
-    
-    # File Storage
-    UPLOAD_DIR: str = "uploads"
-    MAX_FILE_SIZE: int = 10 * 1024 * 1024  # 10MB
-    ALLOWED_FILE_TYPES: List[str] = ["pdf", "doc", "docx"]
-    
-    @field_validator('ALLOWED_FILE_TYPES', mode='before')
-    @classmethod
-    def parse_allowed_file_types(cls, v):
-        if isinstance(v, str):
-            return [x.strip() for x in v.split(',')]
-        return v
-    
-    @field_validator('BACKEND_CORS_ORIGINS', mode='before')
-    @classmethod
-    def parse_cors_origins(cls, v):
-        if isinstance(v, str):
-            return [x.strip() for x in v.split(',')]
-        return v
-    
-    # NLP Settings
-    SPACY_MODEL: str = "en_core_web_sm"
-    BERT_MODEL: str = "bert-base-uncased"
-    SIMILARITY_THRESHOLD: float = 0.5
-    
-    # Email settings (for password reset)
-    SMTP_SERVER: Optional[str] = None
-    SMTP_PORT: int = 587
-    SMTP_USER: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
-    EMAIL_FROM: Optional[str] = None
-    
-    # Performance settings
-    ENABLE_CACHING: bool = True
-    CACHE_TTL: int = 3600
-    
-    # Logging
-    LOG_LEVEL: str = "INFO"
-    
-    # CORS
-    BACKEND_CORS_ORIGINS: List[str] = [
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:5173"
-    ]
-    
-    # Rate Limiting
-    RATE_LIMIT_PER_MINUTE: int = 60
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
 
-settings = Settings()
+    app_name: str = "Hirify API"
+    app_version: str = "2.0.0"
+    debug: bool = False
+    api_prefix: str = "/api/v1"
+    cors_origins: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+            "https://hirify-frontend.netlify.app",
+        ]
+    )
+
+    database_url: str = f"sqlite:///{(DEFAULT_DATA_DIR / 'hirify.db').as_posix()}"
+    sql_echo: bool = False
+
+    upload_root: Path = DEFAULT_DATA_DIR / "uploads"
+    resume_upload_subdir: str = "resumes"
+    max_upload_bytes: int = 10 * 1024 * 1024
+
+    embedding_model_name: str = "BAAI/bge-small-en-v1.5"
+    embedding_dimensions: int = 384
+    embedding_backend: str = "auto"
+
+    match_weight_skills: float = 0.40
+    match_weight_experience: float = 0.30
+    match_weight_education: float = 0.20
+    match_weight_additional: float = 0.10
+
+    @field_validator("debug", mode="before")
+    @classmethod
+    def parse_debug(cls, value):
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "on", "debug", "development"}:
+                return True
+            if normalized in {"0", "false", "no", "off", "release", "production"}:
+                return False
+        return value
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, value):
+        if value is None:
+            return []
+
+        if isinstance(value, str):
+            normalized = value.strip()
+            if not normalized:
+                return []
+
+            # Accept JSON arrays, e.g. ["https://a.com", "https://b.com"].
+            try:
+                parsed = json.loads(normalized)
+                if isinstance(parsed, str):
+                    single = parsed.strip()
+                    return [single] if single else []
+                if isinstance(parsed, list):
+                    return [str(item).strip() for item in parsed if str(item).strip()]
+            except json.JSONDecodeError:
+                pass
+
+            # Accept comma-separated values, e.g. https://a.com,https://b.com.
+            return [origin.strip() for origin in normalized.split(",") if origin.strip()]
+
+        if isinstance(value, (list, tuple, set)):
+            return [str(item).strip() for item in value if str(item).strip()]
+
+        return value
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value):
+        if not isinstance(value, str):
+            return value
+
+        if value.startswith("postgresql+"):
+            return value
+        if value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+psycopg://", 1)
+        if value.startswith("postgres://"):
+            return value.replace("postgres://", "postgresql+psycopg://", 1)
+        return value
+
+    @property
+    def resume_upload_dir(self) -> Path:
+        return self.upload_root / self.resume_upload_subdir
+
+
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    settings = Settings()
+    settings.upload_root.mkdir(parents=True, exist_ok=True)
+    settings.resume_upload_dir.mkdir(parents=True, exist_ok=True)
+    return settings
+
+
+settings = get_settings()

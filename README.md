@@ -1,415 +1,322 @@
-#  Hirify - AI-Powered Resume and Job Matching Platform
+# Hirify
 
-<div align="center">
+Hirify is a resume and job matching app with a React frontend and a clean FastAPI backend.
 
+The backend in this repo has been rebuilt around the actual frontend contract in:
 
-**Intelligent resume parsing and job matching system powered by advanced NLP and machine learning**
+- `frontend/src/services/api.ts`
+- `docs/frontend-backend-contract.md`
 
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/React-18+-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
+This README reflects the backend that is implemented now, not the older Celery/Redis/auth architecture that used to be documented here.
 
-[ Documentation](./project.md) • [ Installation](#-quick-start) • [ API Docs](#-api-documentation) • [ Contributing](#-contributing)
+## Current Backend Status
 
-</div>
+- Fresh FastAPI backend under `backend/`
+- Frontend-first API contract implemented
+- Resume ingestion for `PDF` and `DOCX`
+- Legacy `.doc` files are rejected in v1
+- Structured resume preview data for the current UI
+- Single match and many-to-many bulk match
+- Candidate records derived from processed resumes
+- Local default database is SQLite for easy development
+- Production path is Postgres/Neon, with `pgvector` support when available
+- Base install works without heavyweight ML packages
+- Optional transformer-based embeddings can be added through `backend/requirements-ml.txt`
 
----
+## Tech Stack
 
-##  Table of Contents
+### Frontend
 
-- [ Features](#-features)
-- [ Architecture](#️-architecture)
-- [ Tech Stack](#️-tech-stack)
-- [ Quick Start](#-quick-start)
-- [ API Documentation](#-api-documentation)
-- [ NLP Pipeline](#-nlp-pipeline)
-- [ Project Structure](#-project-structure)
-- [ Configuration](#-configuration)
-- [ Deployment](#-deployment)
-- [ Contributing](#-contributing)
-- [ License](#-license)
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
 
----
+### Backend
 
-##  Features
+- Python 3.12+
+- FastAPI
+- SQLAlchemy 2
+- Alembic
+- Pydantic v2
+- Uvicorn
 
-### 🎯 **Core Capabilities**
-- **📄 Resume Processing**: Extract structured data from PDF, DOC, and DOCX files
-- **🔍 Intelligent Matching**: Advanced NLP-powered job-candidate matching with similarity scoring
-- **📊 Analytics Dashboard**: Comprehensive insights and performance metrics
-- **⚡ Bulk Processing**: Handle multiple resumes and job descriptions simultaneously
-- **🔄 Background Tasks**: Asynchronous processing with Celery and Redis
+### Document Processing
 
-### 🧠 **AI & NLP Features**
-- **Skills Extraction**: Intelligent identification and categorization of technical and soft skills
-- **Semantic Analysis**: TF-IDF, cosine similarity, and BERT embeddings
-- **Entity Recognition**: Automated extraction of contact info, experience, and education
-- **Job Scraping**: Automated collection from multiple job boards
-- **Match Explanations**: Detailed reasoning behind matching scores
+- PyMuPDF for PDF parsing
+- docx2txt for DOCX parsing
 
-### 💻 **User Experience**
-- **Modern UI**: React 18 with TypeScript and Tailwind CSS
-- **Real-time Updates**: Live status tracking and notifications
-- **Drag & Drop**: Intuitive file upload interface
-- **Export Options**: Multiple formats (CSV, Excel, PDF)
-- **Mobile Responsive**: Optimized for all devices
+### Matching
 
----
+- Weighted scoring:
+  - Skills: `0.40`
+  - Experience: `0.30`
+  - Education: `0.20`
+  - Additional: `0.10`
+- Base install uses deterministic hashing embeddings
+- Optional local embedding model support via `sentence-transformers`
 
-##  Architecture
+### Storage
 
-```mermaid
-graph TB
-    A[React Frontend] --> B[FastAPI Backend]
-    B --> C[PostgreSQL Database]
-    B --> D[Redis Cache]
-    B --> E[Celery Workers]
-    E --> F[NLP Processing]
-    F --> G[spaCy + NLTK + BERT]
-    B --> H[Document Parser]
-    H --> I[PDF/DOC/DOCX Files]
-```
+- Local dev default: SQLite
+- Production target: Postgres / Neon
+- Uploaded files stored on disk via configurable `UPLOAD_ROOT`
 
----
+## Backend Features
 
-##  Tech Stack
+### Resume Processing
 
-### **Frontend**
-- **React 18** with TypeScript for type safety
-- **Tailwind CSS** for modern, responsive design
-- **Framer Motion** for smooth animations
-- **React Query** for server state management
-- **Vite** for fast development and building
-- **shadcn/ui** for beautiful, accessible components
+- `POST /api/v1/resumes/upload`
+- `POST /api/v1/resumes/bulk-upload`
+- `GET /api/v1/resumes/`
+- `GET /api/v1/resumes/{id}`
+- `GET /api/v1/resumes/{id}/status`
+- `GET /api/v1/resumes/{id}/preview`
+- `POST /api/v1/resumes/{id}/reprocess`
+- `PUT /api/v1/resumes/{id}`
+- `DELETE /api/v1/resumes/{id}`
 
-### **Backend**
-- **FastAPI** (Python 3.11) for high-performance APIs
-- **SQLAlchemy** ORM with PostgreSQL database
-- **Celery** with Redis for background task processing
-- **JWT Authentication** with bcrypt password hashing
-- **Alembic** for database migrations
+Each processed resume stores:
 
-### **AI/ML & NLP**
-- **spaCy** for advanced NLP processing
-- **NLTK** for text preprocessing
-- **scikit-learn** for machine learning algorithms
-- **Transformers** (Hugging Face) for BERT embeddings
-- **PDFPlumber** and **python-docx** for document parsing
+- extracted text
+- structured preview data
+- processing status
+- optional embedding vector
+- candidate-facing normalized fields
 
-### **DevOps & Infrastructure**
-- **PostgreSQL** for reliable data storage
-- **Redis** for caching and message brokering
-- **Uvicorn** ASGI server for production
-- **GitHub Actions** for CI/CD
+### Job Management
 
----
+- `POST /api/v1/jobs/`
+- `GET /api/v1/jobs/`
+- `GET /api/v1/jobs/{id}`
+- `PUT /api/v1/jobs/{id}`
+- `DELETE /api/v1/jobs/{id}`
+- `POST /api/v1/jobs/scrape`
+- `GET /api/v1/jobs/search/skills`
+- `GET /api/v1/jobs/{id}/skills`
+- `POST /api/v1/jobs/{id}/reprocess`
 
-## 🚀 Quick Start
+### Matching
 
-### **Prerequisites**
-- Python 3.11+
-- Node.js 18+
-- PostgreSQL 13+
-- Redis 6+
-- Git
+- `POST /api/v1/matching/match`
+- `POST /api/v1/matching/bulk-match`
+- `GET /api/v1/matching/`
+- `GET /api/v1/matching/{id}`
+- `PUT /api/v1/matching/{id}`
+- `DELETE /api/v1/matching/{id}`
+- `GET /api/v1/matching/{id}/explanation`
+- `GET /api/v1/matching/stats`
+- `GET /api/v1/matching/top-matches`
+- `GET /api/v1/matching/job/{job_id}/candidates`
 
-### **💻 Local Development Setup**
+Bulk matching uses the frontend's current many-to-many shape:
 
-#### **Backend Setup**
-```bash
-# Navigate to backend directory
-cd backend
-
-# Create and activate virtual environment
-python -m venv venv
-# Windows
-venv\Scripts\activate
-# macOS/Linux
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-python -m spacy download en_core_web_sm
-
-# Set up environment
-cp .env.example .env
-
-# Make sure PostgreSQL and Redis are running on your system
-# PostgreSQL: localhost:5432
-# Redis: localhost:6379
-
-# Run database migrations
-alembic upgrade head
-
-# Start FastAPI server
-uvicorn app.main:app --reload --port 8000
-```
-
-#### **Frontend Setup**
-```bash
-# In a new terminal
-cd frontend
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-```
-
-#### **Background Tasks (Optional)**
-```bash
-# In another terminal
-cd backend
-source venv/bin/activate  # or venv\Scripts\activate on Windows
-celery -A celery_app worker --loglevel=info
-```
-
-### **▶️ Running the Project**
-
-#### **Start Backend**
-```bash
-cd backend
-source venv/bin/activate   # Linux/macOS
-# OR: venv\Scripts\activate  # Windows
-
-uvicorn app.main:app --reload --port 8000
-```
-
-#### **Start Frontend** (in a new terminal)
-```bash
-cd frontend
-npm run dev
-```
-
-### ** Verify Installation**
-
-| Service | URL | Status |
-|---------|-----|--------|
-| Frontend | http://localhost:3000 | ✅ Available |
-| Backend API | http://localhost:8000 | ✅ Available |
-| API Docs | http://localhost:8000/docs | ✅ Interactive |
-| Health Check | http://localhost:8000/health | ✅ Monitoring |
-
----
-
-## 📊 API Documentation
-
-### **🔗 Interactive Documentation**
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
-
-### **🛣️ Key Endpoints**
-
-#### **Resume Management**
-```http
-POST   /api/v1/resumes/upload          # Upload resume
-GET    /api/v1/resumes/                # List all resumes
-GET    /api/v1/resumes/{id}            # Get specific resume
-DELETE /api/v1/resumes/{id}            # Delete resume
-POST   /api/v1/resumes/bulk-upload     # Bulk upload
-```
-
-#### **Job Management**
-```http
-POST   /api/v1/jobs/                   # Create job posting
-GET    /api/v1/jobs/                   # List all jobs
-PUT    /api/v1/jobs/{id}               # Update job
-POST   /api/v1/jobs/scrape             # Scrape from job boards
-```
-
-#### **Matching Engine**
-```http
-POST   /api/v1/matching/match          # Create match
-GET    /api/v1/matching/               # List matches
-POST   /api/v1/matching/bulk-match     # Bulk matching
-GET    /api/v1/matching/stats          # Match statistics
-```
-
----
-
-## 🧠 NLP Pipeline
-
-### **📝 Document Processing Flow**
-```
-Resume Upload → Validation → Text Extraction → NLP Processing → Structured Data → Matching
-```
-
-### **🔍 Skills Extraction**
-```python
-# Multi-method skills extraction
-skills_extractor = SkillsExtractor()
-extracted_skills = skills_extractor.extract_skills(text)
-
-# Categories: Technical, Soft Skills, Certifications, Tools
-```
-
-### **🎯 Matching Algorithm**
-```python
-# Weighted scoring system
-scoring_weights = {
-    'skills': 0.40,      # 40% - Technical skills match
-    'experience': 0.30,  # 30% - Experience level
-    'education': 0.20,   # 20% - Educational background
-    'additional': 0.10   # 10% - Additional factors
+```json
+{
+  "resume_ids": [1, 2, 3],
+  "job_ids": [10, 11],
+  "min_score_threshold": 0.5,
+  "include_explanations": true
 }
 ```
 
----
+Only pairs meeting the threshold are persisted during bulk matching.
 
-## 📁 Project Structure
+### Candidates
 
+- `GET /api/v1/candidates/`
+- `GET /api/v1/candidates/{id}`
+- `PUT /api/v1/candidates/{id}`
+- `DELETE /api/v1/candidates/{id}`
+- `GET /api/v1/candidates/{id}/resume`
+- `GET /api/v1/candidates/search/by-skills`
+
+## API Response Conventions
+
+List endpoints return:
+
+```json
+{
+  "items": [],
+  "total": 0,
+  "page": 1,
+  "size": 100,
+  "pages": 0
+}
 ```
+
+Match scores are returned in the `0..1` range. The frontend multiplies them by `100` for display.
+
+Resume preview responses are shaped for the current modal:
+
+```json
+{
+  "contact_info": {},
+  "summary": "string",
+  "work_experience": [],
+  "education": [],
+  "skills": [],
+  "certifications": [],
+  "processing_metadata": {}
+}
+```
+
+## Project Structure
+
+```text
 hirify/
-├── 🖥️  backend/                    # FastAPI backend
+├── backend/
+│   ├── alembic/
+│   │   └── versions/
 │   ├── app/
-│   │   ├── api/v1/endpoints/       # REST API routes
-│   │   ├── core/                   # App configuration
-│   │   ├── models/                 # Database models
-│   │   ├── schemas/                # Pydantic schemas
-│   │   ├── services/               # Business logic
-│   │   └── tasks/                  # Celery background tasks
-│   ├── alembic/                    # Database migrations
-│   ├── tests/                      # Test suites
-│   └── main.py                     # App entry point
-├── ⚛️  frontend/                   # React frontend
-│   ├── src/
-│   │   ├── components/             # React components
-│   │   ├── hooks/                  # Custom hooks
-│   │   ├── services/               # API clients
-│   │   └── types/                  # TypeScript definitions
-│   └── public/                     # Static assets
-├── 📋 .env.example                 # Environment template
-└── 📖 README.md                    # This file
+│   │   ├── api/
+│   │   │   └── routes/
+│   │   ├── core/
+│   │   ├── models/
+│   │   ├── schemas/
+│   │   └── services/
+│   ├── data/
+│   ├── tests/
+│   ├── main.py
+│   ├── requirements.txt
+│   └── requirements-ml.txt
+├── docs/
+├── frontend/
+└── README.md
 ```
 
----
+## Local Development
 
-## 🔧 Configuration
+### Prerequisites
 
-### **📋 Environment Variables**
-```env
-# Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/hirify
+- Python 3.12+
+- Node.js 18+
 
-# Redis & Celery
-REDIS_URL=redis://localhost:6379/0
-CELERY_BROKER_URL=redis://localhost:6379/0
+### Backend
 
-# Security
-SECRET_KEY=your-secret-key-here
-ACCESS_TOKEN_EXPIRE_MINUTES=480
-
-# File Upload
-MAX_FILE_SIZE=10485760  # 10MB
-ALLOWED_FILE_TYPES=pdf,doc,docx
-
-# NLP Models
-SPACY_MODEL=en_core_web_sm
-SIMILARITY_THRESHOLD=0.5
-```
-
-### **🎛️ Performance Tuning**
-- **Redis Caching**: Configurable TTL for different data types
-- **Database Connection Pooling**: Optimized for concurrent requests
-- **Background Processing**: Separate queues for different task priorities
-- **File Storage**: Configurable upload directory and size limits
-
----
-
-## 🚢 Deployment
-
-### **🖥️ Production Deployment**
 ```bash
-# Set production environment variables
-export DATABASE_URL=postgresql://user:pass@localhost:5432/hirify
-export SECRET_KEY=your-production-secret-key
-export REDIS_URL=redis://localhost:6379/0
+cd backend
+python -m venv .venv
 
-# Start the application
-uvicorn main:app --host 0.0.0.0 --port 8000
+# Linux / macOS
+source .venv/bin/activate
 
-# Health check
-curl http://localhost:8000/health
+# Windows PowerShell
+# .venv\Scripts\Activate.ps1
+
+pip install -r requirements.txt
 ```
 
+Optional local embedding model support:
 
-### **🔍 Monitoring & Logging**
-- Structured JSON logging with custom formatters
-- Health checks for all services
-- Performance metrics collection
-- Error tracking and alerting
+```bash
+pip install -r requirements-ml.txt
+```
 
----
+Run migrations if you want Alembic-managed schema setup:
 
+```bash
+alembic upgrade head
+```
 
-## 🤝 Contributing
+Start the API:
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+```bash
+uvicorn app.main:app --reload --port 8000
+```
 
-### **🛠️ Development Process**
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Useful URLs:
 
-### **📋 Code Standards**
-- **Python**: Follow PEP 8, use type hints
-- **TypeScript**: Strict mode enabled
-- **Testing**: Maintain >80% test coverage
-- **Documentation**: Update docs for new features
+- API root: `http://localhost:8000/`
+- Health: `http://localhost:8000/health`
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
 
----
+Note:
 
-## 📞 Support & Community
+- The app also creates tables on startup through `init_db()`, which makes local boot simpler.
+- `.doc` files are intentionally not supported in v1.
 
-- **📚 Documentation**: [Full Project Documentation](./project.md)
-- **🐛 Bug Reports**: [GitHub Issues](https://github.com/yourusername/hirify/issues)
-- **💡 Feature Requests**: [GitHub Discussions](https://github.com/yourusername/hirify/discussions)
-- **📧 Contact**: [x](https://x.com/adnankhaan_ai)
+### Frontend
 
----
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-## 🗺️ Roadmap
+The frontend expects the backend at `http://localhost:8000` unless `VITE_API_URL` is set.
 
-- [ ] **Enhanced NLP**: Custom training for domain-specific matching
-- [ ] **Multi-language Support**: Process resumes in multiple languages
-- [ ] **Advanced Analytics**: Machine learning insights and predictions
-- [ ] **Mobile App**: Native mobile applications
-- [ ] **API Rate Limiting**: Advanced throttling and quotas
-- [ ] **Real-time Notifications**: WebSocket-based updates
-- [ ] **Integration Hub**: Connect with popular ATS systems
+## Configuration
 
----
+The most useful backend environment variables are:
 
-## 📄 License
+```env
+DATABASE_URL=sqlite:///backend/data/hirify.db
+UPLOAD_ROOT=backend/data/uploads
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,https://hirify-frontend.netlify.app
+EMBEDDING_BACKEND=auto
+EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
+EMBEDDING_DIMENSIONS=384
+SQL_ECHO=false
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+`EMBEDDING_BACKEND` behavior:
 
----
+- `auto`: use `sentence-transformers` if installed, otherwise fall back to hashing embeddings
+- `hash`: always use the lightweight hashing backend
+- `sentence-transformers`: prefer the local transformer embedding path
 
-## 🙏 Acknowledgments
+## Railway / Neon Notes
 
-- **spaCy** team for excellent NLP libraries
-- **FastAPI** for the amazing web framework
-- **React** community for frontend innovations
-- **Hugging Face** for transformer models
-- All contributors who help make Hirify better
+This backend is structured so it can move from local SQLite to Railway + Neon cleanly.
 
----
+Recommended production setup:
 
-<div align="center">
+- Set `DATABASE_URL` to your Neon Postgres connection string
+- Mount persistent storage on Railway and point `UPLOAD_ROOT` to it
+- Set `CORS_ORIGINS` to your frontend origin(s), for example `https://hirify-frontend.netlify.app`
+- Keep `EMBEDDING_BACKEND=hash` for the lightest deploy, or install `requirements-ml.txt` if you want local transformer embeddings
 
-**⭐ Star this repo if you find it helpful!**
+Example production startup command:
 
-Made with ❤️ by the Hirify team
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+```
 
-</div>
+When running on Postgres, the backend attempts `CREATE EXTENSION IF NOT EXISTS vector` during startup. If `pgvector` is unavailable, embeddings still fall back to JSON storage.
 
-## 🆘 Support
+## Testing
 
-For support, please open an issue in the GitHub repository or contact the development team.
+Backend contract tests live in `backend/tests/`.
 
+Run them with:
 
+```bash
+python -m pytest backend/tests -q
+```
+
+The current contract suite covers:
+
+- health check
+- resume upload
+- resume preview
+- resume reprocess
+- DOCX support
+- `.doc` rejection
+- job creation
+- single matching
+- many-to-many bulk matching
+- stats and ranked candidates
+- delete flows
+
+## Important Notes
+
+- This backend is synchronous by design in v1 so it matches the current frontend behavior immediately.
+- There is no Celery, Redis, JWT auth, or background worker layer in the current backend.
+- The backend contract is driven by the mounted frontend, not the older architecture notes.
+- The active migration is `backend/alembic/versions/0001_frontend_first_contract.py`.
+
+## License
+
+This project is licensed under the MIT License. See `LICENSE` if present in the repository.
