@@ -48,10 +48,11 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
             variant="secondary"
             onClick={() => onOpenChange(false)}
             disabled={confirming}
+            className="w-full sm:w-auto"
           >
             {cancelLabel}
           </Button>
-          <Button variant="destructive" onClick={onConfirm} disabled={confirming}>
+          <Button variant="destructive" onClick={onConfirm} disabled={confirming} className="w-full sm:w-auto">
             {confirming ? 'Please wait...' : confirmLabel}
           </Button>
         </DialogFooter>
