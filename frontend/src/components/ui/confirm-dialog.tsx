@@ -43,7 +43,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
 
-        <DialogFooter>
+        <DialogFooter className="pt-1 pb-3">
           <Button
             type="button"
             variant="secondary"

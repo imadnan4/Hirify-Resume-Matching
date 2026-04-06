@@ -101,7 +101,7 @@ const ToastContainer: React.FC = () => {
   const { toasts } = useToast();
 
   return (
-    <div className="fixed top-4 right-4 z-50 w-full max-w-sm space-y-2 pointer-events-none">
+    <div className="fixed inset-x-3 top-3 z-50 space-y-2 pointer-events-none sm:inset-auto sm:top-4 sm:right-4 sm:w-full sm:max-w-sm">
       <AnimatePresence>
         {toasts.map((toast) => (
           <ToastItem key={toast.id} toast={toast} />
