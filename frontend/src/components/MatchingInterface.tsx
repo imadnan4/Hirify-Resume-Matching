@@ -294,6 +294,16 @@ const MatchingInterface: React.FC = () => {
     return pieData.length > 0 ? pieData : [{ name: 'No Data', value: 1, color: '#94A3B8' }]
   }
 
+  const selectedResumeOption = selectedSingleResume
+    ? resumes.find((resume) => resume.id === selectedSingleResume)
+    : null
+  const selectedJobOption = selectedSingleJob
+    ? jobs.find((job) => job.id === selectedSingleJob)
+    : null
+
+  const selectedResumeValue = selectedResumeOption ? selectedResumeOption.id.toString() : undefined
+  const selectedJobValue = selectedJobOption ? selectedJobOption.id.toString() : undefined
+
   return (
     <motion.div className="space-y-4 md:space-y-6">
       {/* Main Header */}
@@ -416,10 +426,12 @@ const MatchingInterface: React.FC = () => {
               ) : (
                 <Select
                   onValueChange={(value) => setSelectedSingleResume(value ? parseInt(value, 10) : null)}
-                  value={selectedSingleResume?.toString()}
+                  value={selectedResumeValue}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Choose a resume..." />
+                    <SelectValue placeholder="Choose a resume...">
+                      {selectedResumeOption?.filename}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {resumes.map((resume) => (
@@ -445,10 +457,12 @@ const MatchingInterface: React.FC = () => {
               ) : (
                 <Select
                   onValueChange={(value) => setSelectedSingleJob(value ? parseInt(value, 10) : null)}
-                  value={selectedSingleJob?.toString()}
+                  value={selectedJobValue}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Choose a job..." />
+                    <SelectValue placeholder="Choose a job...">
+                      {selectedJobOption ? `${selectedJobOption.title} - ${selectedJobOption.company}` : undefined}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {jobs.map((job) => (
