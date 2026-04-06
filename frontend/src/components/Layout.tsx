@@ -45,12 +45,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <SidebarProvider defaultOpen>
         <Sidebar collapsible="icon">
           <SidebarHeader>
-            <div className="flex items-center justify-between gap-2 px-2 py-2">
-              <div className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
+            <div className="flex items-center justify-between gap-2 px-2 py-2 group-data-[collapsible=icon]:justify-center">
+              <div className="flex items-center gap-2 group-data-[collapsible=icon]:gap-0">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
                   <FileText className="h-4 w-4" />
                 </div>
-                <div className="flex flex-col leading-none">
+                <div className="flex flex-col leading-none group-data-[collapsible=icon]:hidden">
                   <span className="font-semibold">Hirify</span>
                   <span className="text-xs text-muted-foreground">Resume matching</span>
                 </div>
@@ -67,6 +67,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                   <SidebarMenuItem key={item.to}>
                     <SidebarMenuButton
                       isActive={isActive(item.to)}
+                      tooltip={item.label}
                       render={<Link to={item.to} />}
                     >
                       <Icon />
@@ -83,18 +84,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </Sidebar>
 
         <SidebarInset>
-          <header className="bg-background/80 supports-backdrop-filter:bg-background/60 sticky top-0 z-20 border-b px-3 py-3 backdrop-blur md:px-4">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger className="md:hidden" />
-              <div className="flex-1">
-                <h1 className="text-base font-semibold">
-                  {navItems.find((item) => item.to === location.pathname)?.label || 'Dashboard'}
-                </h1>
-              </div>
-            </div>
-          </header>
-
           <main className="px-4 py-4 md:px-6 md:py-6 lg:px-8">
+            <div className="mb-2 flex md:hidden">
+              <SidebarTrigger />
+            </div>
             <motion.div
               key={location.pathname}
               initial={{ opacity: 0, y: 20 }}

@@ -155,7 +155,7 @@ const Dashboard: React.FC = () => {
         <CardHeader className="gap-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <CardTitle className="text-2xl">Overview</CardTitle>
+              <CardTitle className="text-2xl">Dashboard</CardTitle>
               <CardDescription>Operational summary of resumes, jobs, and match quality.</CardDescription>
             </div>
             <Button onClick={fetchDashboardStats} disabled={loading} variant="secondary" size="lg" className="w-full sm:w-auto">

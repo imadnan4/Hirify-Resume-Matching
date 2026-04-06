@@ -33,6 +33,31 @@ const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 
 const SidebarContext = React.createContext(null);
 
+const getSidebarOpenFromCookie = () => {
+	if (typeof document === "undefined") {
+		return null;
+	}
+
+	const cookie = document.cookie
+		.split("; ")
+		.find((row) => row.startsWith(`${SIDEBAR_COOKIE_NAME}=`));
+
+	if (!cookie) {
+		return null;
+	}
+
+	const value = cookie.split("=")[1];
+	if (value === "true") {
+		return true;
+	}
+
+	if (value === "false") {
+		return false;
+	}
+
+	return null;
+};
+
 function useSidebar() {
 	const context = React.useContext(SidebarContext);
 	if (!context) {
@@ -56,7 +81,10 @@ function SidebarProvider({
 
 	// This is the internal state of the sidebar.
 	// We use openProp and setOpenProp for control from outside the component.
-	const [_open, _setOpen] = React.useState(defaultOpen);
+	const [_open, _setOpen] = React.useState(() => {
+		const openFromCookie = getSidebarOpenFromCookie();
+		return openFromCookie ?? defaultOpen;
+	});
 	const open = openProp ?? _open;
 	const setOpen = React.useCallback(
 		(value) => {
@@ -135,7 +163,7 @@ function SidebarProvider({
 function Sidebar({
 	side = "left",
 	variant = "sidebar",
-	collapsible = "offExamples",
+	collapsible = "offcanvas",
 	className = "",
 	children = null,
 	...props
@@ -196,7 +224,7 @@ function Sidebar({
 				className={cn(
 					"transition-[width] duration-200 ease-linear relative w-(--sidebar-width) bg-transparent",
 					"group-data-[state=collapsed]:w-0",
-					"group-data-[collapsible=offExamples]:w-0",
+					"group-data-[collapsible=offcanvas]:w-0",
 					"group-data-[side=right]:rotate-180",
 					variant === "floating" || variant === "inset"
 						? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
@@ -208,8 +236,8 @@ function Sidebar({
 				className={cn(
 					"fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
 					side === "left"
-						? "left-0 group-data-[collapsible=offExamples]:left-[calc(var(--sidebar-width)*-1)]"
-						: "right-0 group-data-[collapsible=offExamples]:right-[calc(var(--sidebar-width)*-1)]",
+						? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
+						: "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
 					// Adjust the padding for floating and inset variants.
 					variant === "floating" || variant === "inset"
 						? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
@@ -264,12 +292,12 @@ function SidebarRail({ className = "", ...props }) {
 			onClick={toggleSidebar}
 			title="Toggle Sidebar"
 			className={cn(
-				"hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] sm:flex",
+				"hover:after:bg-sidebar-border absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear group-data-[side=left]:-right-4 group-data-[side=right]:left-0 after:absolute after:inset-y-0 after:left-1/2 after:w-0.5 sm:flex",
 				"in-data-[side=left]:cursor-w-resize in-data-[side=right]:cursor-e-resize",
 				"[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
-				"hover:group-data-[collapsible=offExamples]:bg-sidebar group-data-[collapsible=offExamples]:translate-x-0 group-data-[collapsible=offExamples]:after:left-full",
-				"[[data-side=left][data-collapsible=offExamples]_&]:-right-2",
-				"[[data-side=right][data-collapsible=offExamples]_&]:-left-2",
+				"hover:group-data-[collapsible=offcanvas]:bg-sidebar group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full",
+				"[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
+				"[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
 				className,
 			)}
 			{...props}
@@ -469,16 +497,29 @@ function SidebarMenuButton({
 	className = "",
 	...props
 }) {
-	const { isMobile, state } = useSidebar();
+	const { isMobile, setOpenMobile, state } = useSidebar();
+	const { onClick, ...restProps } = props;
+	const resolvedRender = tooltip
+		? render
+			? <TooltipTrigger render={render} />
+			: TooltipTrigger
+		: render;
+
 	const comp = useRender({
 		defaultTagName: "button",
 		props: mergeProps(
 			{
 				className: cn(sidebarMenuButtonVariants({ variant, size }), className),
+				onClick: (event) => {
+					onClick?.(event);
+					if (isMobile) {
+						setOpenMobile(false);
+					}
+				},
 			},
-			props,
+			restProps,
 		),
-		render: !tooltip ? render : TooltipTrigger,
+		render: resolvedRender,
 		state: {
 			slot: "sidebar-menu-button",
 			sidebar: "menu-button",
