@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Users, FileText, TrendingUp, Target } from 'lucide-react'
 import apiService, { Resume, JobDescription, Match } from '../services/api'
@@ -29,7 +29,6 @@ const MatchingInterface: React.FC = () => {
   const [matchingType, setMatchingType] = useState<'single' | 'bulk'>('single')
   const [selectedSingleResume, setSelectedSingleResume] = useState<number | null>(null)
   const [selectedSingleJob, setSelectedSingleJob] = useState<number | null>(null)
-  const [stats, setStats] = useState<MatchingStats>({ totalMatches: 0, averageScore: 0, highScoreMatches: 0, lowScoreMatches: 0 })
   const [matchPendingDelete, setMatchPendingDelete] = useState<Match | null>(null)
   const [deletingMatch, setDeletingMatch] = useState(false)
   const { addToast } = useToast()
@@ -39,21 +38,24 @@ const MatchingInterface: React.FC = () => {
     fetchData()
   }, [])
 
-  // Calculate statistics
-  useEffect(() => {
-    if (matches.length > 0) {
-      const totalMatches = matches.length
-      const averageScore = matches.reduce((sum, match) => sum + match.overall_score, 0) / totalMatches
-      const highScoreMatches = matches.filter(match => match.overall_score >= 0.8).length
-      const lowScoreMatches = matches.filter(match => match.overall_score < 0.4).length
-      
-      setStats({ totalMatches, averageScore, highScoreMatches, lowScoreMatches })
+  const stats = useMemo<MatchingStats>(() => {
+    if (matches.length === 0) {
+      return { totalMatches: 0, averageScore: 0, highScoreMatches: 0, lowScoreMatches: 0 }
     }
+
+    const totalMatches = matches.length
+    const averageScore = matches.reduce((sum, match) => sum + match.overall_score, 0) / totalMatches
+    const highScoreMatches = matches.filter(match => match.overall_score >= 0.8).length
+    const lowScoreMatches = matches.filter(match => match.overall_score < 0.4).length
+
+    return { totalMatches, averageScore, highScoreMatches, lowScoreMatches }
   }, [matches])
 
-  const fetchData = async () => {
+  const fetchData = async (withLoader = true) => {
     try {
-      setLoading(true)
+      if (withLoader) {
+        setLoading(true)
+      }
       setError(null)
       
       const [resumeResponse, jobResponse, matchResponse] = await Promise.all([
@@ -69,7 +71,9 @@ const MatchingInterface: React.FC = () => {
       setError(err.response?.data?.detail || 'Failed to fetch data')
       console.error('Error fetching data:', err)
     } finally {
-      setLoading(false)
+      if (withLoader) {
+        setLoading(false)
+      }
     }
   }
 
@@ -105,11 +109,21 @@ const MatchingInterface: React.FC = () => {
     try {
       setMatching(true)
       await apiService.createMatch(resumeId, jobId)
-      await fetchData()
+      await fetchData(false)
       setSelectedSingleResume(null)
       setSelectedSingleJob(null)
+      addToast({
+        type: 'success',
+        title: 'Match created',
+        description: 'The new match has been added to your results.'
+      })
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to create match')
+      addToast({
+        type: 'error',
+        title: 'Match failed',
+        description: err.response?.data?.detail || 'Failed to create match'
+      })
     } finally {
       setMatching(false)
     }
@@ -132,9 +146,19 @@ const MatchingInterface: React.FC = () => {
       
       setSelectedResumes([])
       setSelectedJobs([])
-      await fetchData()
+      await fetchData(false)
+      addToast({
+        type: 'success',
+        title: 'Bulk matching complete',
+        description: 'Match results were refreshed successfully.'
+      })
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to perform bulk matching')
+      addToast({
+        type: 'error',
+        title: 'Bulk matching failed',
+        description: err.response?.data?.detail || 'Failed to perform bulk matching'
+      })
     } finally {
       setMatching(false)
     }
@@ -150,9 +174,11 @@ const MatchingInterface: React.FC = () => {
 
     try {
       setDeletingMatch(true)
-      await apiService.deleteMatch(matchPendingDelete.id)
+      const deletedMatchId = matchPendingDelete.id
+
+      await apiService.deleteMatch(deletedMatchId)
       console.log('Match deleted successfully')
-      await fetchData()
+      setMatches((prev) => prev.filter((match) => match.id !== deletedMatchId))
       addToast({
         type: 'success',
         title: 'Match deleted',

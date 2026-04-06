@@ -26,9 +26,11 @@ const ResumeManager: React.FC = () => {
     fetchResumes()
   }, [])
 
-  const fetchResumes = async () => {
+  const fetchResumes = async (withLoader = true) => {
     try {
-      setLoading(true)
+      if (withLoader) {
+        setLoading(true)
+      }
       setError(null)
       const response = await apiService.getResumes({ limit: 50 })
       setResumes(response.items)
@@ -36,7 +38,9 @@ const ResumeManager: React.FC = () => {
       setError(err.response?.data?.detail || 'Failed to fetch resumes')
       console.error('Error fetching resumes:', err)
     } finally {
-      setLoading(false)
+      if (withLoader) {
+        setLoading(false)
+      }
     }
   }
 
@@ -113,7 +117,7 @@ const ResumeManager: React.FC = () => {
       setUploadProgress({})
       
       // Refresh resumes list
-      await fetchResumes()
+      await fetchResumes(false)
       
     } catch (err) {
       console.error('Upload error:', err)
@@ -152,13 +156,16 @@ const ResumeManager: React.FC = () => {
 
     try {
       setDeletingResume(true)
-      await apiService.deleteResume(resumePendingDelete.id)
+      const deletedResumeId = resumePendingDelete.id
+      const deletedResumeName = resumePendingDelete.filename
+
+      await apiService.deleteResume(deletedResumeId)
       console.log('Resume deleted successfully')
-      await fetchResumes()
+      setResumes((prev) => prev.filter((resume) => resume.id !== deletedResumeId))
       addToast({
         type: 'success',
         title: 'Resume deleted',
-        description: `${resumePendingDelete.filename} has been removed.`
+        description: `${deletedResumeName} has been removed.`
       })
       setResumePendingDelete(null)
     } catch (err: any) {
@@ -177,7 +184,7 @@ const ResumeManager: React.FC = () => {
   const handleReprocessResume = async (resumeId: number) => {
     try {
       await apiService.reprocessResume(resumeId)
-      await fetchResumes()
+      await fetchResumes(false)
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to reprocess resume')
     }

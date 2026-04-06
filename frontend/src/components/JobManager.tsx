@@ -33,9 +33,11 @@ const JobManager: React.FC = () => {
     fetchJobs()
   }, [])
 
-  const fetchJobs = async () => {
+  const fetchJobs = async (withLoader = true) => {
     try {
-      setLoading(true)
+      if (withLoader) {
+        setLoading(true)
+      }
       setError(null)
       const response = await apiService.getJobs({ limit: 50 })
       setJobs(response.items)
@@ -43,7 +45,9 @@ const JobManager: React.FC = () => {
       setError(err.response?.data?.detail || 'Failed to fetch jobs')
       console.error('Error fetching jobs:', err)
     } finally {
-      setLoading(false)
+      if (withLoader) {
+        setLoading(false)
+      }
     }
   }
 
@@ -65,7 +69,7 @@ const JobManager: React.FC = () => {
         employment_type: '',
         experience_level: ''
       })
-      await fetchJobs()
+      await fetchJobs(false)
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to add job')
     }
@@ -82,13 +86,16 @@ const JobManager: React.FC = () => {
 
     try {
       setDeletingJob(true)
-      await apiService.deleteJob(jobPendingDelete.id)
+      const deletedJobId = jobPendingDelete.id
+      const deletedJobTitle = jobPendingDelete.title
+
+      await apiService.deleteJob(deletedJobId)
       console.log('Job deleted successfully')
-      await fetchJobs()
+      setJobs((prev) => prev.filter((job) => job.id !== deletedJobId))
       addToast({
         type: 'success',
         title: 'Job deleted',
-        description: `${jobPendingDelete.title} has been removed.`
+        description: `${deletedJobTitle} has been removed.`
       })
       setJobPendingDelete(null)
     } catch (err: any) {
