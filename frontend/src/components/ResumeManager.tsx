@@ -3,6 +3,8 @@ import { motion } from 'framer-motion'
 import apiService, { Resume } from '../services/api'
 import { Button } from './ui/button'
 import { Progress } from './ui/progress'
+import { useToast } from './ui/toast'
+import ConfirmDialog from './ui/confirm-dialog'
 
 const ResumeManager: React.FC = () => {
   const [resumes, setResumes] = useState<Resume[]>([])
@@ -15,6 +17,9 @@ const ResumeManager: React.FC = () => {
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
   const [previewData, setPreviewData] = useState<any>(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
+  const [resumePendingDelete, setResumePendingDelete] = useState<Resume | null>(null)
+  const [deletingResume, setDeletingResume] = useState(false)
+  const { addToast } = useToast()
 
   // Load resumes on component mount
   useEffect(() => {
@@ -137,18 +142,35 @@ const ResumeManager: React.FC = () => {
     }
   }
 
-  const handleDeleteResume = async (resumeId: number, e?: React.MouseEvent) => {
+  const requestDeleteResume = (resume: Resume, e?: React.MouseEvent) => {
     e?.stopPropagation()
-    if (!confirm('Are you sure you want to delete this resume?')) return
-    
+    setResumePendingDelete(resume)
+  }
+
+  const handleDeleteResume = async () => {
+    if (!resumePendingDelete) return
+
     try {
-      console.log('Deleting resume:', resumeId)
-      await apiService.deleteResume(resumeId)
+      setDeletingResume(true)
+      await apiService.deleteResume(resumePendingDelete.id)
       console.log('Resume deleted successfully')
       await fetchResumes()
+      addToast({
+        type: 'success',
+        title: 'Resume deleted',
+        description: `${resumePendingDelete.filename} has been removed.`
+      })
+      setResumePendingDelete(null)
     } catch (err: any) {
       console.error('Delete error:', err)
       setError(err.response?.data?.detail || 'Failed to delete resume')
+      addToast({
+        type: 'error',
+        title: 'Delete failed',
+        description: err.response?.data?.detail || 'Failed to delete resume'
+      })
+    } finally {
+      setDeletingResume(false)
     }
   }
 
@@ -349,7 +371,7 @@ const ResumeManager: React.FC = () => {
 						Preview
 					</Button>
 					<Button
-						onClick={(e) => handleDeleteResume(resume.id, e)}
+            onClick={(e) => requestDeleteResume(resume, e)}
 						variant="destructive"
             className="w-full sm:w-auto"
 					>
@@ -490,6 +512,24 @@ const ResumeManager: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(resumePendingDelete)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setResumePendingDelete(null)
+          }
+        }}
+        title="Delete this resume?"
+        description={
+          resumePendingDelete
+            ? `${resumePendingDelete.filename} will be permanently deleted.`
+            : 'This action cannot be undone.'
+        }
+        confirmLabel="Delete Resume"
+        confirming={deletingResume}
+        onConfirm={handleDeleteResume}
+      />
     </motion.div>
   )
 }

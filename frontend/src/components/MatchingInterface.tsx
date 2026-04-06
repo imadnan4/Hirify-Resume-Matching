@@ -6,6 +6,8 @@ import { Button } from './ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { AnimatedBarChart, AnimatedPieChart } from './ui/animated-chart'
+import { useToast } from './ui/toast'
+import ConfirmDialog from './ui/confirm-dialog'
 
 interface MatchingStats {
   totalMatches: number
@@ -28,6 +30,9 @@ const MatchingInterface: React.FC = () => {
   const [selectedSingleResume, setSelectedSingleResume] = useState<number | null>(null)
   const [selectedSingleJob, setSelectedSingleJob] = useState<number | null>(null)
   const [stats, setStats] = useState<MatchingStats>({ totalMatches: 0, averageScore: 0, highScoreMatches: 0, lowScoreMatches: 0 })
+  const [matchPendingDelete, setMatchPendingDelete] = useState<Match | null>(null)
+  const [deletingMatch, setDeletingMatch] = useState(false)
+  const { addToast } = useToast()
 
   // Load data on component mount
   useEffect(() => {
@@ -135,18 +140,35 @@ const MatchingInterface: React.FC = () => {
     }
   }
 
-  const handleDeleteMatch = async (matchId: number, e?: React.MouseEvent) => {
+  const requestDeleteMatch = (match: Match, e?: React.MouseEvent) => {
     e?.stopPropagation()
-    if (!confirm('Are you sure you want to delete this match?')) return
-    
+    setMatchPendingDelete(match)
+  }
+
+  const handleDeleteMatch = async () => {
+    if (!matchPendingDelete) return
+
     try {
-      console.log('Deleting match:', matchId)
-      await apiService.deleteMatch(matchId)
+      setDeletingMatch(true)
+      await apiService.deleteMatch(matchPendingDelete.id)
       console.log('Match deleted successfully')
       await fetchData()
+      addToast({
+        type: 'success',
+        title: 'Match deleted',
+        description: 'The matching record has been removed.'
+      })
+      setMatchPendingDelete(null)
     } catch (err: any) {
       console.error('Delete error:', err)
       setError(err.response?.data?.detail || 'Failed to delete match')
+      addToast({
+        type: 'error',
+        title: 'Delete failed',
+        description: err.response?.data?.detail || 'Failed to delete match'
+      })
+    } finally {
+      setDeletingMatch(false)
     }
   }
 
@@ -588,7 +610,7 @@ const MatchingInterface: React.FC = () => {
                     {/* Action Button */}
                     <div className="w-full lg:w-auto">
 					<Button
-						onClick={(e) => handleDeleteMatch(match.id, e)}
+            onClick={(e) => requestDeleteMatch(match, e)}
 						variant="destructive"
             className="w-full sm:w-auto"
 					>
@@ -653,6 +675,20 @@ const MatchingInterface: React.FC = () => {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(matchPendingDelete)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setMatchPendingDelete(null)
+          }
+        }}
+        title="Delete this match record?"
+        description="This will permanently remove the matching result and analysis details."
+        confirmLabel="Delete Match"
+        confirming={deletingMatch}
+        onConfirm={handleDeleteMatch}
+      />
     </motion.div>
   )
 }

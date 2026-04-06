@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 border border-transparent bg-clip-padding text-xs/relaxed font-medium focus-visible:ring-[2px] aria-invalid:ring-[2px] [&_svg:not([class*='size-'])]:size-4 inline-flex items-center justify-center whitespace-nowrap transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none group/button select-none gap-2! rounded-lg [&_svg]:pointer-events-none [&_svg]:size-4 cursor-pointer aria-expanded:ring-[2px] aria-expanded:ring-ring/30",
+  "focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 border border-transparent text-xs/relaxed font-medium focus-visible:ring-[2px] aria-invalid:ring-[2px] [&_svg:not([class*='size-'])]:size-4 inline-flex items-center justify-center whitespace-nowrap transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none shrink-0 [&_svg]:shrink-0 outline-none group/button select-none gap-2! rounded-lg [&_svg]:pointer-events-none [&_svg]:size-4 cursor-pointer aria-expanded:ring-[2px] aria-expanded:ring-ring/30",
   {
     variants: {
       variant: {
@@ -22,13 +22,13 @@ const buttonVariants = cva(
         ghost:
           "hover:bg-neutral-200 dark:hover:bg-accent hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
         info:
-          "text-white [text-shadow:0_1px_0_theme(colors.blue.900)] bg-gradient-to-b from-blue-600 to-blue-700 shadow-md shadow-zinc-950/20 ring-1 ring-inset ring-white/20 hover:from-blue-500 hover:to-blue-700 active:from-blue-700 active:to-blue-800",
+          "text-white [text-shadow:0_1px_0_theme(colors.blue.900)] bg-gradient-to-b from-blue-600 to-blue-700 shadow-md shadow-zinc-950/20 hover:from-blue-500 hover:to-blue-700 active:from-blue-700 active:to-blue-800",
         success:
-          "text-white [text-shadow:0_1px_0_theme(colors.emerald.900)] bg-gradient-to-b from-emerald-600 to-emerald-700 shadow-md shadow-zinc-950/20 ring-1 ring-inset ring-white/20 hover:from-emerald-500 hover:to-emerald-700 active:from-emerald-700 active:to-emerald-800",
+          "text-white [text-shadow:0_1px_0_theme(colors.emerald.900)] bg-gradient-to-b from-emerald-600 to-emerald-700 shadow-md shadow-zinc-950/20 hover:from-emerald-500 hover:to-emerald-700 active:from-emerald-700 active:to-emerald-800",
         warning:
-          "text-white [text-shadow:0_1px_0_theme(colors.amber.900)] bg-gradient-to-b from-amber-500 to-amber-600 shadow-md shadow-zinc-950/20 ring-1 ring-inset ring-white/20 hover:from-amber-400 hover:to-amber-600 active:from-amber-600 active:to-amber-700",
+          "text-white [text-shadow:0_1px_0_theme(colors.amber.900)] bg-gradient-to-b from-amber-500 to-amber-600 shadow-md shadow-zinc-950/20 hover:from-amber-400 hover:to-amber-600 active:from-amber-600 active:to-amber-700",
         destructive:
-          "text-white bg-gradient-to-b from-destructive to-red-700 shadow-md shadow-zinc-950/20 ring-1 ring-inset ring-white/20 hover:from-red-500 hover:to-red-700 active:from-red-700 active:to-red-800",
+          "text-white bg-gradient-to-b from-destructive to-red-700 shadow-md shadow-zinc-950/20 hover:from-red-500 hover:to-red-700 active:from-red-700 active:to-red-800",
         raised:
           "[text-shadow:0_1px_0_var(--color-zinc-100)] dark:[text-shadow:0_1px_0_var(--color-zinc-900)] bg-background hover:bg-zinc-50 dark:hover:bg-neutral-900 border-input/50 relative border-b-2 shadow-sm shadow-zinc-950/15 ring-0 ring-zinc-300 dark:ring-zinc-700 text-foreground",
         link:

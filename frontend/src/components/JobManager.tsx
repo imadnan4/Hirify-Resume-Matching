@@ -6,12 +6,17 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Textarea } from './ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
+import { useToast } from './ui/toast'
+import ConfirmDialog from './ui/confirm-dialog'
 
 const JobManager: React.FC = () => {
   const [jobs, setJobs] = useState<JobDescription[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [jobPendingDelete, setJobPendingDelete] = useState<JobDescription | null>(null)
+  const [deletingJob, setDeletingJob] = useState(false)
+  const { addToast } = useToast()
   const [formData, setFormData] = useState({
     title: '',
     company: '',
@@ -67,18 +72,35 @@ const JobManager: React.FC = () => {
   }
 
 
-  const handleDeleteJob = async (jobId: number, e?: React.MouseEvent) => {
+  const requestDeleteJob = (job: JobDescription, e?: React.MouseEvent) => {
     e?.stopPropagation()
-    if (!confirm('Are you sure you want to delete this job?')) return
-    
+    setJobPendingDelete(job)
+  }
+
+  const handleDeleteJob = async () => {
+    if (!jobPendingDelete) return
+
     try {
-      console.log('Deleting job:', jobId)
-      await apiService.deleteJob(jobId)
+      setDeletingJob(true)
+      await apiService.deleteJob(jobPendingDelete.id)
       console.log('Job deleted successfully')
       await fetchJobs()
+      addToast({
+        type: 'success',
+        title: 'Job deleted',
+        description: `${jobPendingDelete.title} has been removed.`
+      })
+      setJobPendingDelete(null)
     } catch (err: any) {
       console.error('Delete error:', err)
       setError(err.response?.data?.detail || 'Failed to delete job')
+      addToast({
+        type: 'error',
+        title: 'Delete failed',
+        description: err.response?.data?.detail || 'Failed to delete job'
+      })
+    } finally {
+      setDeletingJob(false)
     }
   }
 
@@ -281,7 +303,7 @@ const JobManager: React.FC = () => {
                   
                   <div className="flex w-full items-center gap-2 lg:w-auto lg:justify-end">
 					<Button
-						onClick={(e) => handleDeleteJob(job.id, e)}
+            onClick={(e) => requestDeleteJob(job, e)}
 						variant="destructive"
 						className="w-full sm:w-auto"
 					>
@@ -294,6 +316,24 @@ const JobManager: React.FC = () => {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(jobPendingDelete)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setJobPendingDelete(null)
+          }
+        }}
+        title="Delete this job?"
+        description={
+          jobPendingDelete
+            ? `${jobPendingDelete.title} at ${jobPendingDelete.company} will be permanently deleted.`
+            : 'This action cannot be undone.'
+        }
+        confirmLabel="Delete Job"
+        confirming={deletingJob}
+        onConfirm={handleDeleteJob}
+      />
     </motion.div>
   )
 }
