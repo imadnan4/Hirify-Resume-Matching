@@ -1,4 +1,3 @@
-import React from 'react'
 import { Routes, Route } from 'react-router-dom'
 import Dashboard from './components/Dashboard'
 import ResumeManager from './components/ResumeManager'

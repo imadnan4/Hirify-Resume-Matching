@@ -65,63 +65,69 @@ type ButtonProps = React.ComponentPropsWithoutRef<typeof ButtonPrimitive> &
     animation?: "all" | "colors" | "none" | "only-scale";
   };
 
-function Button({
-  className,
-  variant = "info",
-  size = "default",
-  animation = "all",
-  children,
-  ...props
-}: ButtonProps) {
-  return (
-    <ButtonPrimitive
-      data-slot="button"
-      className={cn(
-        buttonVariants({ variant, size, animation, className }),
-        variant === "decorations" &&
-          "relative rounded-none squircle-none overflow-visible",
-      )}
-      {...props}
-    >
-      {children}
-      {variant === "decorations" && (
-        <div className={cn("absolute -left-[1px] -top-[1px] z-10")}> 
-          <div className="relative">
-            <div className="bg-muted-foreground w-[1px] h-[5px] rounded-full absolute top-0" />
-            <div className="bg-muted-foreground w-[5px] h-[1px] rounded-full absolute left-0" />
+const Button = React.forwardRef<React.ElementRef<typeof ButtonPrimitive>, ButtonProps>(
+  (
+    {
+      className,
+      variant = "info",
+      size = "default",
+      animation = "all",
+      children,
+      ...props
+    },
+    ref,
+  ) => {
+    return (
+      <ButtonPrimitive
+        ref={ref}
+        data-slot="button"
+        className={cn(
+          buttonVariants({ variant, size, animation, className }),
+          variant === "decorations" &&
+            "relative rounded-none squircle-none overflow-visible",
+        )}
+        {...props}
+      >
+        {children}
+        {variant === "decorations" && (
+          <div className={cn("absolute -left-px -top-px z-10")}>
+            <div className="relative">
+              <div className="bg-muted-foreground w-px h-1.25 rounded-full absolute top-0" />
+              <div className="bg-muted-foreground w-1.25 h-px rounded-full absolute left-0" />
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {variant === "decorations" && (
-        <div className={cn("absolute -right-[0px] -top-[1px] z-10")}> 
-          <div className="relative">
-            <div className="bg-muted-foreground w-[1px] h-[5px] rounded-full absolute top-0" />
-            <div className="bg-muted-foreground w-[5px] h-[1px] rounded-full absolute -left-[4.5px]" />
+        {variant === "decorations" && (
+          <div className={cn("absolute right-0 -top-px z-10")}>
+            <div className="relative">
+              <div className="bg-muted-foreground w-px h-1.25 rounded-full absolute top-0" />
+              <div className="bg-muted-foreground w-1.25 h-px rounded-full absolute -left-[4.5px]" />
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {variant === "decorations" && (
-        <div className={cn("absolute -left-[1px] -bottom-[0px] z-10")}> 
-          <div className="relative">
-            <div className="bg-muted-foreground w-[1px] h-[5px] rounded-full absolute -top-[4.5px]" />
-            <div className="bg-muted-foreground w-[5px] h-[1px] rounded-full absolute left-0" />
+        {variant === "decorations" && (
+          <div className={cn("absolute -left-px bottom-0 z-10")}>
+            <div className="relative">
+              <div className="bg-muted-foreground w-px h-1.25 rounded-full absolute -top-[4.5px]" />
+              <div className="bg-muted-foreground w-1.25 h-px rounded-full absolute left-0" />
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {variant === "decorations" && (
-        <div className={cn("absolute -right-[0px] -bottom-[0px] z-10")}> 
-          <div className="relative">
-            <div className="bg-muted-foreground w-[1px] h-[5px] rounded-full absolute -top-[4.5px]" />
-            <div className="bg-muted-foreground w-[5px] h-[1px] rounded-full absolute -left-[4.5px]" />
+        {variant === "decorations" && (
+          <div className={cn("absolute right-0 bottom-0 z-10")}>
+            <div className="relative">
+              <div className="bg-muted-foreground w-px h-1.25 rounded-full absolute -top-[4.5px]" />
+              <div className="bg-muted-foreground w-1.25 h-px rounded-full absolute -left-[4.5px]" />
+            </div>
           </div>
-        </div>
-      )}
-    </ButtonPrimitive>
-  );
-}
+        )}
+      </ButtonPrimitive>
+    );
+  },
+);
 
 Button.displayName = "Button";
 
