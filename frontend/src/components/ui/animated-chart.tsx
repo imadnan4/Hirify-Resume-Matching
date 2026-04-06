@@ -7,6 +7,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Label,
   LabelList,
   Legend,
   Line,
@@ -46,12 +47,13 @@ const AXIS_TICK_STYLE = {
   fill: "hsl(var(--muted-foreground))",
 };
 
-const compactTickLabel = (value: unknown) => {
-  if (typeof value !== "string") {
-    return value;
+const compactTickLabel = (value: any, _index: number): string => {
+  if (value === null || value === undefined) {
+    return "";
   }
 
-  return value.length > 10 ? `${value.slice(0, 10)}…` : value;
+  const text = typeof value === "string" ? value : String(value);
+  return text.length > 10 ? `${text.slice(0, 10)}…` : text;
 };
 
 const getXAxisKey = (data: any[]) => {
@@ -73,6 +75,41 @@ const getSeriesKeys = (data: any[]) => {
 
   return Object.keys(sample).filter(
     (key) => !["name", "date", "month", "label", "color"].includes(key),
+  );
+};
+
+const AnimatedPieTooltip: React.FC<any> = ({ active, payload }) => {
+  if (!active || !payload || !payload.length) {
+    return null;
+  }
+
+  const point = payload[0]?.payload;
+  if (!point) {
+    return null;
+  }
+
+  const percentageText = typeof point.percentage === "number" ? `${point.percentage.toFixed(1)}%` : "0.0%";
+  const valueText = typeof point.value === "number" ? point.value.toFixed(1) : String(point.value ?? 0);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      className="rounded-lg border border-border/80 bg-card/95 p-3 shadow-xl backdrop-blur"
+    >
+      <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: point.color || payload[0]?.color }} />
+        <span>{point.name}</span>
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        <span>Contribution</span>
+        <span className="font-medium text-foreground">{valueText}</span>
+      </div>
+      <div className="mt-1 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+        <span>Share</span>
+        <span className="font-medium text-foreground">{percentageText}</span>
+      </div>
+    </motion.div>
   );
 };
 
@@ -189,6 +226,8 @@ export const AnimatedPieChart: React.FC<AnimatedChartProps> = ({
   colors = EVIL_CHART_PALETTE,
 }) => {
   const [animatedData, setAnimatedData] = useState<any[]>([]);
+  const [activeSlice, setActiveSlice] = useState<number | null>(null);
+  const gradientPrefix = React.useId().replace(/:/g, "");
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -197,6 +236,53 @@ export const AnimatedPieChart: React.FC<AnimatedChartProps> = ({
 
     return () => clearTimeout(timer);
   }, [data]);
+
+  const chartData = useMemo(() => {
+    const source = (animatedData || []).filter((item) => typeof item?.value === "number" && item.value > 0);
+    const total = source.reduce((sum: number, item: any) => sum + item.value, 0);
+
+    return source.map((item: any, index: number) => {
+      const color = item.color || colors[index % colors.length];
+      return {
+        ...item,
+        color,
+        percentage: total > 0 ? (item.value / total) * 100 : 0,
+      };
+    });
+  }, [animatedData, colors]);
+
+  const totalValue = useMemo(
+    () => chartData.reduce((sum: number, item: any) => sum + item.value, 0),
+    [chartData]
+  );
+
+  const centerLabel = title?.toLowerCase().includes("distribution") ? "Distribution" : "Total";
+
+  const labelRenderer = (props: any) => {
+    const { cx, cy, midAngle, outerRadius, percent } = props;
+
+    if (typeof percent !== "number" || percent < 0.08) {
+      return null;
+    }
+
+    const radius = Number(outerRadius || 0) + 14;
+    const x = Number(cx || 0) + radius * Math.cos((-midAngle * Math.PI) / 180);
+    const y = Number(cy || 0) + radius * Math.sin((-midAngle * Math.PI) / 180);
+
+    return (
+      <text
+        x={x}
+        y={y}
+        fill="hsl(var(--muted-foreground))"
+        textAnchor={x > Number(cx || 0) ? "start" : "end"}
+        dominantBaseline="central"
+        fontSize={11}
+        fontWeight={600}
+      >
+        {`${(percent * 100).toFixed(0)}%`}
+      </text>
+    );
+  };
 
   return (
     <Card className={cn(CHART_CARD_CLASS, className)}>
@@ -210,30 +296,113 @@ export const AnimatedPieChart: React.FC<AnimatedChartProps> = ({
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.45 }}
+          className="relative"
         >
+          <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_30%,hsl(var(--primary)/0.08),transparent_58%)]" />
           <ResponsiveContainer width="100%" height={height}>
             <PieChart margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
+              <defs>
+                {chartData.map((entry: any, index: number) => (
+                  <linearGradient
+                    key={`${gradientPrefix}-slice-${index}`}
+                    id={`${gradientPrefix}-slice-${index}`}
+                    x1="0"
+                    y1="0"
+                    x2="1"
+                    y2="1"
+                  >
+                    <stop offset="0%" stopColor={entry.color} stopOpacity={0.95} />
+                    <stop offset="100%" stopColor={entry.color} stopOpacity={0.7} />
+                  </linearGradient>
+                ))}
+              </defs>
               <Pie
-                data={animatedData}
+                data={[{ name: "track", value: Math.max(totalValue, 1) }]}
                 cx="50%"
-                cy="48%"
-                innerRadius={Math.max(32, Math.floor(height * 0.17))}
-                outerRadius={Math.max(52, Math.floor(height * 0.28))}
+                cy="46%"
+                innerRadius={Math.max(42, Math.floor(height * 0.19))}
+                outerRadius={Math.max(68, Math.floor(height * 0.31))}
+                dataKey="value"
+                stroke="none"
+                fill="hsl(var(--muted)/0.55)"
+                isAnimationActive={false}
+              />
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="46%"
+                innerRadius={Math.max(42, Math.floor(height * 0.19))}
+                outerRadius={Math.max(68, Math.floor(height * 0.31))}
                 dataKey="value"
                 nameKey="name"
-                paddingAngle={2}
+                startAngle={90}
+                endAngle={-270}
+                paddingAngle={3}
+                cornerRadius={8}
                 stroke="hsl(var(--background))"
                 strokeWidth={2}
                 animationDuration={1200}
+                label={labelRenderer}
+                labelLine={false}
+                onMouseEnter={(_, index) => setActiveSlice(index)}
+                onMouseLeave={() => setActiveSlice(null)}
               >
-                {animatedData.map((entry, index) => (
-                  <Cell key={`${entry.name}-${index}`} fill={colors[index % colors.length]} />
+                {chartData.map((entry, index) => (
+                  <Cell
+                    key={`${entry.name}-${index}`}
+                    fill={`url(#${gradientPrefix}-slice-${index})`}
+                    strokeWidth={activeSlice === index ? 3 : 2}
+                    opacity={activeSlice === null || activeSlice === index ? 1 : 0.7}
+                  />
                 ))}
+                <Label
+                  position="center"
+                  content={({ viewBox }) => {
+                    if (!viewBox || !("cx" in viewBox) || !("cy" in viewBox)) {
+                      return null;
+                    }
+                    const cx = Number(viewBox.cx);
+                    const cy = Number(viewBox.cy);
+
+                    return (
+                      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle">
+                        <tspan x={cx} y={cy - 6} className="fill-foreground text-[16px] font-semibold">
+                          {Math.round(totalValue)}
+                        </tspan>
+                        <tspan x={cx} y={cy + 13} className="fill-muted-foreground text-[10px] font-medium uppercase tracking-[0.08em]">
+                          {centerLabel}
+                        </tspan>
+                      </text>
+                    );
+                  }}
+                />
               </Pie>
-              <Tooltip content={<AnimatedTooltip />} />
-              <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: "12px", paddingTop: 8 }} />
+              <Tooltip content={<AnimatedPieTooltip />} />
             </PieChart>
           </ResponsiveContainer>
+
+          {chartData.length > 0 ? (
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {chartData.map((entry: any, index: number) => (
+                <motion.div
+                  key={`${entry.name}-${index}`}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.25, delay: index * 0.05 }}
+                  className="rounded-md border border-border/70 bg-background/80 px-3 py-2"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
+                      <span className="truncate text-xs font-medium text-foreground">{entry.name}</span>
+                    </div>
+                    <span className="text-xs font-semibold text-foreground">{entry.value.toFixed(1)}</span>
+                  </div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">{entry.percentage.toFixed(1)}% of total</div>
+                </motion.div>
+              ))}
+            </div>
+          ) : null}
         </motion.div>
       </CardContent>
     </Card>
