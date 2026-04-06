@@ -83,7 +83,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </Sidebar>
 
         <SidebarInset>
-          <header className="bg-background/80 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-20 border-b px-4 py-3 backdrop-blur">
+          <header className="bg-background/80 supports-backdrop-filter:bg-background/60 sticky top-0 z-20 border-b px-3 py-3 backdrop-blur md:px-4">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="md:hidden" />
               <div className="flex-1">
@@ -94,13 +94,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
           </header>
 
-          <main className="p-6">
+          <main className="px-4 py-4 md:px-6 md:py-6 lg:px-8">
             <motion.div
               key={location.pathname}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
+              className="mx-auto w-full max-w-7xl"
             >
               {children}
             </motion.div>

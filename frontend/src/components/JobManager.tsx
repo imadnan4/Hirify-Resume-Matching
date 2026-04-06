@@ -98,25 +98,27 @@ const JobManager: React.FC = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="space-y-6"
+      className="space-y-4 md:space-y-6"
     >
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="rounded-lg border border-border/60 bg-card/95 p-5 shadow-sm md:p-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-4">Job Manager</h1>
         <p className="text-gray-600 mb-4">
           Manage job descriptions through manual entry.
         </p>
         
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-700">{error}</p>
-				<Button onClick={() => setError(null)} variant="destructive" size="sm" >
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-medium text-red-700">{error}</p>
+				<Button onClick={() => setError(null)} variant="destructive" size="sm" className="w-full sm:w-auto" >
 					Dismiss
 				</Button>
+            </div>
           </div>
         )}
         
-        <div className="flex">
-			<Button onClick={() => setShowAddForm(!showAddForm)} variant="info">
+        <div className="flex flex-col sm:flex-row">
+			<Button onClick={() => setShowAddForm(!showAddForm)} variant="info" className="w-full sm:w-auto">
 				Add Job
 			</Button>
         </div>
@@ -124,12 +126,12 @@ const JobManager: React.FC = () => {
 
       {/* Add Job Form */}
       {showAddForm && (
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="rounded-lg border border-border/60 bg-card/95 p-5 shadow-sm md:p-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Add New Job</h2>
           <form onSubmit={handleAddJob} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-				<Label className="mb-1">Job Title *</Label>
+				<Label className="mb-1 block">Job Title *</Label>
 				<Input
                   type="text"
                   required
@@ -138,7 +140,7 @@ const JobManager: React.FC = () => {
                 />
               </div>
               <div>
-				<Label className="mb-1">Company *</Label>
+				<Label className="mb-1 block">Company *</Label>
 				<Input
                   type="text"
                   required
@@ -147,7 +149,7 @@ const JobManager: React.FC = () => {
                 />
               </div>
               <div>
-				<Label className="mb-1">Location</Label>
+				<Label className="mb-1 block">Location</Label>
 				<Input
                   type="text"
                   value={formData.location}
@@ -155,7 +157,7 @@ const JobManager: React.FC = () => {
                 />
               </div>
               <div>
-				<Label className="mb-1">Salary Range</Label>
+				<Label className="mb-1 block">Salary Range</Label>
 				<Input
                   type="text"
                   value={formData.salary_range}
@@ -164,7 +166,7 @@ const JobManager: React.FC = () => {
                 />
               </div>
               <div>
-				<Label className="mb-1">Employment Type</Label>
+				<Label className="mb-1 block">Employment Type</Label>
 				<Select
 					value={formData.employment_type || undefined}
           onValueChange={(value) => setFormData({ ...formData, employment_type: value ?? '' })}
@@ -182,7 +184,7 @@ const JobManager: React.FC = () => {
 				</Select>
               </div>
               <div>
-				<Label className="mb-1">Experience Level</Label>
+        <Label className="mb-1 block">Experience Level</Label>
 				<Select
 					value={formData.experience_level || undefined}
           onValueChange={(value) => setFormData({ ...formData, experience_level: value ?? '' })}
@@ -202,7 +204,7 @@ const JobManager: React.FC = () => {
             </div>
             
             <div>
-				<Label className="mb-1">Job Description *</Label>
+				<Label className="mb-1 block">Job Description *</Label>
 				<Textarea
                 required
                 rows={4}
@@ -213,7 +215,7 @@ const JobManager: React.FC = () => {
             </div>
             
             <div>
-				<Label className="mb-1">Requirements</Label>
+				<Label className="mb-1 block">Requirements</Label>
 				<Textarea
                 rows={3}
                 value={formData.requirements}
@@ -222,9 +224,9 @@ const JobManager: React.FC = () => {
               />
             </div>
             
-            <div className="flex space-x-4">
-				<Button type="submit" variant="info">Add Job</Button>
-				<Button type="button" variant="secondary" onClick={() => setShowAddForm(false)}>
+            <div className="flex flex-col gap-2 sm:flex-row">
+				<Button type="submit" variant="info" className="w-full sm:w-auto">Add Job</Button>
+				<Button type="button" variant="secondary" onClick={() => setShowAddForm(false)} className="w-full sm:w-auto">
 					Cancel
 				</Button>
             </div>
@@ -234,10 +236,10 @@ const JobManager: React.FC = () => {
 
 
       {/* Jobs List */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="rounded-lg border border-border/60 bg-card/95 p-5 shadow-sm md:p-6">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-xl font-semibold text-gray-800">Job Descriptions</h2>
-			<Button onClick={fetchJobs} disabled={loading} variant="secondary">
+			<Button onClick={fetchJobs} disabled={loading} variant="secondary" className="w-full sm:w-auto">
 				{loading ? 'Loading...' : 'Refresh'}
 			</Button>
         </div>
@@ -254,10 +256,10 @@ const JobManager: React.FC = () => {
         ) : (
           <div className="space-y-4">
             {jobs.map((job) => (
-              <div key={job.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
+              <div key={job.id} className="overflow-hidden rounded-lg border p-4 transition-colors hover:bg-muted/30">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
+                    <div className="mb-2 flex flex-wrap items-center gap-2.5">
                       <h3 className="font-semibold text-gray-800">{job.title}</h3>
                       <span className="text-sm text-gray-600">at {job.company}</span>
                       {job.employment_type && (
@@ -266,9 +268,9 @@ const JobManager: React.FC = () => {
                         </span>
                       )}
                     </div>
-                    <div className="text-sm text-gray-600 mb-2">
-                      {job.location && <span className="mr-4">📍 {job.location}</span>}
-                      {job.salary_range && <span className="mr-4">💰 {job.salary_range}</span>}
+                    <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-600">
+                      {job.location && <span>📍 {job.location}</span>}
+                      {job.salary_range && <span>💰 {job.salary_range}</span>}
                       {job.experience_level && <span>📊 {job.experience_level}</span>}
                     </div>
                     <p className="text-sm text-gray-700 line-clamp-2">{job.description}</p>
@@ -277,11 +279,11 @@ const JobManager: React.FC = () => {
                     </div>
                   </div>
                   
-                  <div className="flex items-center space-x-2">
+                  <div className="flex w-full items-center gap-2 lg:w-auto lg:justify-end">
 					<Button
 						onClick={(e) => handleDeleteJob(job.id, e)}
 						variant="destructive"
-						
+						className="w-full sm:w-auto"
 					>
 						Delete
 					</Button>

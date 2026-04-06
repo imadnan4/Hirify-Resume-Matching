@@ -243,13 +243,13 @@ const MatchingInterface: React.FC = () => {
       })
     }
     
-    return pieData.length > 0 ? pieData : [{ name: 'No Data', value: 1, color: '#gray' }]
+    return pieData.length > 0 ? pieData : [{ name: 'No Data', value: 1, color: '#94A3B8' }]
   }
 
   return (
-    <motion.div className="space-y-6">
+    <motion.div className="space-y-4 md:space-y-6">
       {/* Main Header */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="rounded-lg border border-border/60 bg-card/95 p-5 shadow-sm md:p-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-4">Resume Matching</h1>
         <p className="text-gray-600 mb-4">
           Intelligently match resumes with job descriptions using AI-powered analysis.
@@ -257,7 +257,7 @@ const MatchingInterface: React.FC = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Matches</CardTitle>
@@ -313,9 +313,9 @@ const MatchingInterface: React.FC = () => {
           <CardDescription>
             Intelligently match resumes with job descriptions.
           </CardDescription>
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Select onValueChange={(value) => setMatchingType(value as 'single' | 'bulk')} value={matchingType}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-56">
                 <SelectValue placeholder="Select Match Type" />
               </SelectTrigger>
               <SelectContent>
@@ -328,6 +328,7 @@ const MatchingInterface: React.FC = () => {
               disabled={resumes.length === 0 || jobs.length === 0 || matching}
               // className="bg-blue-500 text-white rounded-lg"
               variant="info"
+              className="w-full sm:w-auto"
             >
               {matching ? 'Matching...' : 'Start Matching'}
             </Button>
@@ -336,15 +337,17 @@ const MatchingInterface: React.FC = () => {
         <CardContent className="space-y-6">
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-red-700">{error}</p>
-              <Button 
-                variant="destructive" 
-                size="sm" 
-                onClick={() => setError(null)}
-                
-              >
-                Dismiss
-              </Button>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm font-medium text-red-700">{error}</p>
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={() => setError(null)}
+                  className="w-full sm:w-auto"
+                >
+                  Dismiss
+                </Button>
+              </div>
             </div>
           )}
         
@@ -426,7 +429,7 @@ const MatchingInterface: React.FC = () => {
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {resumes.map((resume) => (
-                    <label key={resume.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                    <label key={resume.id} className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50">
                       <input
                         type="checkbox"
                         checked={selectedResumes.includes(resume.id)}
@@ -456,7 +459,7 @@ const MatchingInterface: React.FC = () => {
               ) : (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   {jobs.map((job) => (
-                    <label key={job.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                    <label key={job.id} className="flex cursor-pointer items-center gap-2 rounded p-2 hover:bg-gray-50">
                       <input
                         type="checkbox"
                         checked={selectedJobs.includes(job.id)}
@@ -481,7 +484,7 @@ const MatchingInterface: React.FC = () => {
         {/* Matching Controls */}
         {matchingType === 'bulk' && (
           <div className="mt-6 space-y-4">
-            <div className="flex items-center space-x-4">
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center">
               <label className="text-sm font-medium text-gray-700">
                 Minimum Score Threshold:
               </label>
@@ -492,7 +495,7 @@ const MatchingInterface: React.FC = () => {
                 step="0.1"
                 value={minScoreThreshold}
                 onChange={(e) => setMinScoreThreshold(parseFloat(e.target.value))}
-                className="flex-1 max-w-xs"
+                className="w-full sm:max-w-xs"
               />
               <span className="text-sm text-gray-600">{minScoreThreshold.toFixed(1)}</span>
             </div>
@@ -521,7 +524,7 @@ const MatchingInterface: React.FC = () => {
       </Card>
 
       {/* Match Results */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="rounded-lg border border-border/60 bg-card/95 p-5 shadow-sm md:p-6">
         <h2 className="text-xl font-semibold text-gray-800 mb-4">Match Results</h2>
         {loading ? (
           <div className="text-center py-8">
@@ -537,12 +540,15 @@ const MatchingInterface: React.FC = () => {
             {matches.map((match) => {
               const resume = resumes.find(r => r.id === match.resume_id)
               const job = jobs.find(j => j.id === match.job_id)
+              const barData = getMatchChartData(match)
+              const pieData = getMatchPieData(match)
+
               return (
-                <div key={match.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                <div key={match.id} className="rounded-lg border p-4 transition-colors hover:bg-muted/30">
                   
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center space-x-4 mb-2">
+                      <div className="mb-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex-1">
                           <h3 className="font-semibold text-gray-800">
                             {resume?.filename || 'Unknown Resume'}
@@ -553,7 +559,7 @@ const MatchingInterface: React.FC = () => {
                         </div>
 
                         {/* Overall Score */}
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className={`px-3 py-1 rounded-full text-sm font-medium ${getScoreColor(match.overall_score)}`}>
                             {(match.overall_score * 100).toFixed(1)}%
                           </span>
@@ -580,11 +586,11 @@ const MatchingInterface: React.FC = () => {
                     </div>
 
                     {/* Action Button */}
-                    <div>
+                    <div className="w-full lg:w-auto">
 					<Button
 						onClick={(e) => handleDeleteMatch(match.id, e)}
 						variant="destructive"
-						
+            className="w-full sm:w-auto"
 					>
 						Delete
 					</Button>
@@ -592,24 +598,22 @@ const MatchingInterface: React.FC = () => {
                   </div>
 
                   {/* Functional Chart for Matching Analysis */}
-                  {match && (
-                    <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
                       <AnimatedBarChart
-                        data={getMatchChartData(match)}
+                        data={barData}
                         title="Matching Scores by Category"
-                        height={200}
-                        colors={['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c']}
+                        height={220}
+                        colors={['#22D3EE', '#60A5FA']}
                         className="col-span-1"
                       />
                       <AnimatedPieChart
-                        data={getMatchPieData(match)}
+                        data={pieData}
                         title="Match Distribution"
-                        height={200}
-                        colors={['#8884d8', '#82ca9d', '#ffc658', '#ff7c7c']}
+                        height={220}
+                        colors={pieData.map((segment) => segment.color)}
                         className="col-span-1"
                       />
-                    </div>
-                  )}
+                  </div>
                   
                   {/* Detailed Analysis */}
                   <div className="mt-4 bg-blue-50 p-4 rounded-lg">

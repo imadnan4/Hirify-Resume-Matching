@@ -204,26 +204,28 @@ const ResumeManager: React.FC = () => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="space-y-6"
+      className="space-y-4 md:space-y-6"
     >
       {/* Upload Section */}
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="rounded-lg border border-border/60 bg-card/95 p-5 shadow-sm md:p-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-4">Resume Manager</h1>
         <p className="text-gray-600 mb-4">
           Upload, manage, and process resume documents with AI-powered extraction.
         </p>
         
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-700">{error}</p>
-			<Button onClick={() => setError(null)} variant="destructive" size="sm" >
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-medium text-red-700">{error}</p>
+			<Button onClick={() => setError(null)} variant="destructive" size="sm" className="w-full sm:w-auto" >
 				Dismiss
 			</Button>
+            </div>
           </div>
         )}
         
         <div 
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+          className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors sm:p-8 ${
             dragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400'
           }`}
           onDragEnter={handleDrag}
@@ -248,7 +250,7 @@ const ResumeManager: React.FC = () => {
             className="hidden"
           />
           
-			<Button variant="info" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="mt-4">
+      <Button variant="info" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="mt-4 w-full sm:w-auto">
 				{uploading ? 'Uploading...' : 'Select Files'}
 			</Button>
         </div>
@@ -259,21 +261,21 @@ const ResumeManager: React.FC = () => {
             <h3 className="text-lg font-medium mb-2">Selected Files:</h3>
             <div className="space-y-2">
               {selectedFiles.map((file, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center">
+                <div key={index} className="flex flex-col gap-2 rounded-lg bg-gray-50 p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-medium text-gray-700">{file.name}</span>
-                    <span className="ml-2 text-sm text-gray-500">({formatFileSize(file.size)})</span>
+                    <span className="text-sm text-gray-500">({formatFileSize(file.size)})</span>
                   </div>
                   {uploadProgress[file.name] && (
-					<div className="w-32">
+					<div className="w-full sm:w-32">
 						<Progress value={uploadProgress[file.name]} />
 					</div>
                   )}
                 </div>
               ))}
             </div>
-            <div className="mt-4 flex space-x-2">
-				<Button onClick={uploadFiles} disabled={uploading} variant="success">
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+				<Button onClick={uploadFiles} disabled={uploading} variant="success" className="w-full sm:w-auto">
 					{uploading ? 'Uploading...' : 'Upload Files'}
 				</Button>
 				<Button
@@ -282,6 +284,7 @@ const ResumeManager: React.FC = () => {
 						setUploadProgress({})
 					}}
 					variant="secondary"
+					className="w-full sm:w-auto"
 				>
 					Clear
 				</Button>
@@ -291,10 +294,10 @@ const ResumeManager: React.FC = () => {
       </div>
 
       {/* Resumes List */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="rounded-lg border border-border/60 bg-card/95 p-5 shadow-sm md:p-6">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-xl font-semibold text-gray-800">Uploaded Resumes</h2>
-			<Button onClick={fetchResumes} disabled={loading} variant="secondary">
+			<Button onClick={fetchResumes} disabled={loading} variant="secondary" className="w-full sm:w-auto">
 				{loading ? 'Loading...' : 'Refresh'}
 			</Button>
         </div>
@@ -311,18 +314,16 @@ const ResumeManager: React.FC = () => {
         ) : (
           <div className="space-y-4">
             {resumes.map((resume) => (
-              <div key={resume.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between">
+              <div key={resume.id} className="overflow-hidden rounded-lg border p-4 transition-colors hover:bg-muted/30">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-3">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       <h3 className="font-medium text-gray-800">{resume.filename}</h3>
                       {getStatusBadge(resume.status)}
                     </div>
-                    <div className="mt-1 text-sm text-gray-600">
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-gray-600">
                       <span>Size: {formatFileSize(resume.file_size)}</span>
-                      <span className="mx-2">•</span>
                       <span>Type: {resume.file_type}</span>
-                      <span className="mx-2">•</span>
                       <span>Uploaded: {new Date(resume.upload_date).toLocaleString()}</span>
                     </div>
                     {resume.processing_errors && (
@@ -332,11 +333,11 @@ const ResumeManager: React.FC = () => {
                     )}
                   </div>
                   
-                  <div className="flex items-center space-x-2">
+                  <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto lg:justify-end">
 					<Button
 						onClick={() => handleReprocessResume(resume.id)}
 						variant="link"
-						className="text-blue-600"
+            className="text-blue-600"
 					>
 						Reprocess
 					</Button>
@@ -350,7 +351,7 @@ const ResumeManager: React.FC = () => {
 					<Button
 						onClick={(e) => handleDeleteResume(resume.id, e)}
 						variant="destructive"
-						
+            className="w-full sm:w-auto"
 					>
 						Delete
 					</Button>
@@ -363,10 +364,10 @@ const ResumeManager: React.FC = () => {
       </div>
 
       {isPreviewOpen && previewData && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3 sm:p-6">
+          <div className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-4 shadow-xl sm:p-6 md:p-8">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-800">Extracted Resume Data</h2>
+			  <h2 className="text-xl font-bold text-gray-800 sm:text-2xl">Extracted Resume Data</h2>
 				<Button
 					onClick={() => setIsPreviewOpen(false)}
 					variant="ghost"
@@ -382,7 +383,7 @@ const ResumeManager: React.FC = () => {
               {previewData.contact_info && (
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <h3 className="text-lg font-semibold text-blue-800 mb-3">Contact Information</h3>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                     {previewData.contact_info.full_name && (
                       <div><span className="font-medium">Name:</span> {previewData.contact_info.full_name}</div>
                     )}
@@ -482,7 +483,7 @@ const ResumeManager: React.FC = () => {
             </div>
             
             <div className="mt-8 flex justify-end">
-				<Button onClick={() => setIsPreviewOpen(false)}>
+    				<Button onClick={() => setIsPreviewOpen(false)} className="w-full sm:w-auto">
 					Close
 				</Button>
             </div>

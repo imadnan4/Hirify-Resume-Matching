@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts'
 import apiService from '../services/api'
 import { Button } from './ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
+import { AnimatedBarChart, AnimatedLineChart, AnimatedPieChart } from './ui/animated-chart'
 
 interface DashboardStats {
   totalResumes: number
@@ -27,7 +28,7 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     fetchDashboardStats()
-}, [])
+  }, [])
 
   const fetchDashboardStats = async () => {
     try {
@@ -66,29 +67,34 @@ const Dashboard: React.FC = () => {
     }
   }
 
-
-  // Process real data for charts
   const processTimeSeriesData = (data: any[]) => {
     if (!data || data.length === 0) return []
-    
-    // Group data by date
-    const groupedData = data.reduce((acc, item) => {
-      const date = new Date(item.created_at || item.posted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-      acc[date] = (acc[date] || 0) + 1
+
+    const groupedData = data.reduce((acc: Record<string, number>, item) => {
+      const rawDate = item.created_at || item.posted_at
+      if (!rawDate) {
+        return acc
+      }
+
+      const day = new Date(rawDate)
+      const dayKey = day.toISOString().slice(0, 10)
+      acc[dayKey] = (acc[dayKey] || 0) + 1
       return acc
     }, {})
-    
-    // Convert to array and sort by date
+
     return Object.entries(groupedData)
-      .map(([date, count]) => ({ date, count }))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(-7) // Get last 7 days
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-7)
+      .map(([dayKey, count]) => ({
+        date: new Date(dayKey).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        count,
+      }))
   }
 
   const processScoreDistribution = () => {
     if (!stats.matchData || stats.matchData.length === 0) {
       return [
-        { name: 'No Data', value: 100, color: '#9CA3AF' }
+        { name: 'No Data', value: 100, color: '#94A3B8' }
       ]
     }
     
@@ -108,129 +114,119 @@ const Dashboard: React.FC = () => {
     })
     
     return [
-      { name: 'Excellent (80-100%)', value: distribution.excellent, color: '#10B981' },
-      { name: 'Good (60-79%)', value: distribution.good, color: '#3B82F6' },
+      { name: 'Excellent (80-100%)', value: distribution.excellent, color: '#22C55E' },
+      { name: 'Good (60-79%)', value: distribution.good, color: '#0EA5E9' },
       { name: 'Fair (40-59%)', value: distribution.fair, color: '#F59E0B' },
-      { name: 'Poor (0-39%)', value: distribution.poor, color: '#EF4444' }
+      { name: 'Poor (0-39%)', value: distribution.poor, color: '#F43F5E' }
     ].filter(item => item.value > 0)
   }
 
-  const StatCard: React.FC<{ title: string; value: string; color: string; loading?: boolean }> = ({ title, value, color, loading }) => (
-    <div className="bg-white rounded-lg shadow-md p-6">
-      <h3 className="text-lg font-semibold text-gray-700 mb-2">{title}</h3>
-      {loading ? (
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-16"></div>
-        </div>
-      ) : (
-        <p className={`text-3xl font-bold ${color}`}>{value}</p>
-      )}
-    </div>
-  )
+  const resumeTrendData = useMemo(() => processTimeSeriesData(stats.resumeData), [stats.resumeData])
+  const jobTrendData = useMemo(() => processTimeSeriesData(stats.jobData), [stats.jobData])
+  const scoreDistribution = useMemo(() => processScoreDistribution(), [stats.matchData])
+
+  const StatCard: React.FC<{ title: string; value: string; color: string; loading?: boolean }> = ({ title, value, color, loading }) => {
+    return (
+      <Card className="border-border/60 bg-card/95 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardDescription>{title}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="animate-pulse">
+              <div className="h-8 w-20 rounded bg-muted"></div>
+            </div>
+          ) : (
+            <p className={`text-3xl font-semibold tracking-tight ${color}`}>{value}</p>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="space-y-6"
+      className="space-y-4 md:space-y-6"
     >
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-4">Overview</h1>
+      <Card className="border-border/60 bg-card/95 shadow-sm">
+        <CardHeader className="gap-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="text-2xl">Overview</CardTitle>
+              <CardDescription>Operational summary of resumes, jobs, and match quality.</CardDescription>
+            </div>
+            <Button onClick={fetchDashboardStats} disabled={loading} variant="secondary" size="lg" className="w-full sm:w-auto">
+              {loading ? 'Loading...' : 'Refresh Data'}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-700">{error}</p>
-			<Button onClick={() => setError(null)} variant="destructive" size="sm" >
-				Dismiss
-			</Button>
+          <div className="rounded-lg border border-red-200 bg-red-50/90 p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-medium text-red-700">{error}</p>
+              <Button onClick={() => setError(null)} variant="destructive" size="sm" className="w-full sm:w-auto">
+                Dismiss
+              </Button>
+            </div>
           </div>
         )}
 
-        <div className="flex justify-end mb-4">
-			<Button onClick={fetchDashboardStats} disabled={loading} variant="secondary" size="lg">
-            {loading ? 'Loading...' : 'Refresh Data'}
-			</Button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <StatCard 
             title="Total Resumes" 
             value={stats.totalResumes.toString()} 
-            color="text-blue-600" 
+            color="text-sky-600" 
             loading={loading}
           />
           <StatCard 
             title="Available Jobs" 
             value={stats.totalJobs.toString()} 
-            color="text-green-600" 
+            color="text-emerald-600" 
             loading={loading}
           />
           <StatCard 
             title="Average Match Score" 
             value={`${(stats.averageMatchScore * 100).toFixed(1)}%`} 
-            color="text-purple-600" 
+            color="text-indigo-600" 
             loading={loading}
           />
         </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      {/* Charts section */}
-      <div className="bg-white rounded-lg shadow-md p-6 mt-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Analytics</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Resume Upload Trend */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium text-gray-700 mb-3">Resume Upload Trend</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={processTimeSeriesData(stats.resumeData)}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="count" stroke="#3B82F6" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+      <Card className="border-border/60 bg-card/95 shadow-sm">
+        <CardHeader>
+          <CardTitle>Analytics</CardTitle>
+          <CardDescription>EvilCharts-inspired motion styling with readable tooltips and compact axes.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4 md:space-y-6">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            <AnimatedLineChart
+              data={resumeTrendData}
+              title="Resume Upload Trend"
+              height={260}
+              colors={['#22D3EE']}
+            />
+            <AnimatedBarChart
+              data={jobTrendData}
+              title="Job Posting Trend"
+              height={260}
+              colors={['#38BDF8']}
+            />
           </div>
-          
-          {/* Job Posting Trend */}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium text-gray-700 mb-3">Job Posting Trend</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={processTimeSeriesData(stats.jobData)}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#10B981" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        
-        {/* Match Score Distribution */}
-        <div className="mt-6 bg-gray-50 p-4 rounded-lg">
-          <h3 className="text-lg font-medium text-gray-700 mb-3">Match Score Distribution</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie
-                data={processScoreDistribution()}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {processScoreDistribution().map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
+
+          <AnimatedPieChart
+            data={scoreDistribution}
+            title="Match Score Distribution"
+            height={300}
+            colors={scoreDistribution.map((entry) => entry.color)}
+          />
+        </CardContent>
+      </Card>
             
     </motion.div>
   )
