@@ -341,6 +341,42 @@ Current Railway backend domain:
 https://your-backend.up.railway.app
 ```
 
+### Deployment Troubleshooting (Railway + Neon)
+
+Common issues we hit and the fixes:
+
+1) `pydantic_settings.exceptions.SettingsError: error parsing value for field "cors_origins"`
+
+- Cause: `CORS_ORIGINS` was set as a plain string, but Pydantic tries to parse list fields as JSON.
+- Fix: Set `CORS_ORIGINS` as a JSON array string.
+
+```bash
+railway variables set CORS_ORIGINS='["https://hirify-frontend.netlify.app"]'
+```
+
+2) 500 errors + browser CORS errors ("No 'Access-Control-Allow-Origin' header")
+
+- Cause: Database user lacked privileges (`permission denied for table jobs/resumes/matches`).
+- Fix: Use the Neon owner role for `DATABASE_URL` in Railway, then redeploy/restart.
+
+```bash
+railway variables set DATABASE_URL='postgresql://neondb_owner:NEON_OWNER_PASSWORD@NEON_PROJECT_ID.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
+```
+
+3) Railway CLI timeouts (`reqwest error ... backboard.railway.com/graphql/v2`)
+
+- Cause: Temporary Railway API/network timeouts.
+- Fix: Retry `railway up` or redeploy from the Railway web UI.
+
+4) Frontend not using the backend URL
+
+- Cause: `.env.example` is only a template; Vite reads `.env`, `.env.local`, `.env.production`.
+- Fix: Set `VITE_API_URL` in Netlify env vars or create `frontend/.env` for local testing.
+
+```env
+VITE_API_URL=https://your-backend.up.railway.app
+```
+
 ## Testing
 
 Backend contract tests live in `backend/tests/`.
