@@ -286,6 +286,61 @@ uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
 
 When running on Postgres, the backend attempts `CREATE EXTENSION IF NOT EXISTS vector` during startup. If `pgvector` is unavailable, embeddings still fall back to JSON storage.
 
+### Private Deployment Notes
+
+Netlify frontend:
+
+```
+https://hirify-frontend.netlify.app/
+```
+
+Neon database connection string:
+
+```
+postgresql://authenticator:NEON_AUTHENTICATOR_PASSWORD@NEON_PROJECT_ID-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+```
+
+### Railway CLI Deployment (Backend)
+
+Run these commands from the repo root unless noted:
+
+```bash
+# install Railway CLI
+npm install -g @railway/cli
+
+# login
+railway login
+
+# enter backend folder
+cd backend
+
+# create or link a Railway project
+railway init
+
+# if no service exists, create one (interactive)
+railway add
+
+# select/link the service (interactive)
+railway service
+
+# set required env vars
+railway variables set DATABASE_URL='postgresql://authenticator:NEON_AUTHENTICATOR_PASSWORD@NEON_PROJECT_ID-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require' \
+  CORS_ORIGINS='["https://hirify-frontend.netlify.app"]' \
+  EMBEDDING_BACKEND='hash'
+
+# deploy using Dockerfile in backend/
+railway up
+
+# get the service domain
+railway domain
+```
+
+Current Railway backend domain:
+
+```
+https://your-backend.up.railway.app
+```
+
 ## Testing
 
 Backend contract tests live in `backend/tests/`.

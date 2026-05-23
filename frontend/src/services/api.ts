@@ -1,11 +1,9 @@
 import axios from 'axios'
 
-// API Base URL
+// API Base URL (set VITE_API_URL in .env for deployed frontend)
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV
-    ? 'http://localhost:8000'
-    : 'https://your-backend.up.railway.app')
+  (import.meta.env.DEV ? 'http://localhost:8000' : '')
 
 // Create axios instance
 const api = axios.create({
