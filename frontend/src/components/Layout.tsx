@@ -17,8 +17,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <SidebarProvider defaultOpen>
         <AppSidebar />
 
-        <SidebarInset>
-          <main className="px-4 py-4 md:px-6 md:py-6 lg:px-8">
+        <SidebarInset className="min-w-0 overflow-x-hidden">
+          <main className="w-full min-w-0 overflow-x-hidden px-4 py-4 md:px-6 md:py-6 lg:px-8">
             <div className="mb-2 flex md:hidden">
               <SidebarTrigger />
             </div>
@@ -28,7 +28,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
-              className="mx-auto w-full max-w-7xl"
+              className="mx-auto w-full min-w-0 max-w-7xl"
             >
               {children}
             </motion.div>
