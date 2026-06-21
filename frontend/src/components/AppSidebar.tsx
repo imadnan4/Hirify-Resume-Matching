@@ -12,9 +12,11 @@ import {
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarRail,
   SidebarSeparator,
+  SidebarTrigger,
   useSidebar,
-} from '@/components/optics/sidebar.tsx'
+} from '@/components/optics/sidebar'
 
 interface NavigationItem {
   to: string
@@ -43,14 +45,17 @@ export const AppSidebar: React.FC = () => {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="px-2.5 py-3">
-        <Link
-          to="/"
-          onClick={closeOnMobile}
-          className="grid min-w-0 px-2 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden"
-        >
-          <span className="truncate font-semibold">Hirify</span>
-          <span className="truncate text-xs text-sidebar-foreground/70">Talent Matching OS</span>
-        </Link>
+        <div className="flex min-w-0 items-center gap-2">
+          <Link
+            to="/"
+            onClick={closeOnMobile}
+            className="grid min-w-0 flex-1 px-2 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden"
+          >
+            <span className="truncate font-semibold">Hirify</span>
+            <span className="truncate text-xs text-sidebar-foreground/70">Talent Matching OS</span>
+          </Link>
+          <SidebarTrigger className="ml-auto shrink-0" />
+        </div>
       </SidebarHeader>
 
       <SidebarSeparator />
@@ -86,8 +91,7 @@ export const AppSidebar: React.FC = () => {
 
       <SidebarSeparator />
 
-      
-
+      <SidebarRail />
     </Sidebar>
   )
 }
