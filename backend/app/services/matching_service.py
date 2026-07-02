@@ -5,7 +5,7 @@ from typing import Any
 
 from app.core.config import settings
 from app.schemas.resume import ResumePreviewResponse
-from app.services.embedding_service import get_embedding_provider
+from app.services.embedding_service import cached_encode, get_embedding_provider
 from app.services.text_processing import (
     cosine_similarity,
     dedupe_preserve_order,
@@ -51,8 +51,8 @@ class MatchingService:
         job_structured_data: dict[str, Any] | None,
     ) -> MatchComputation:
         job_text = "\n".join(part for part in [job_title, job_description, job_requirements or ""] if part)
-        resume_embedding = self.embedder.encode(resume_text)
-        job_embedding = self.embedder.encode(job_text)
+        resume_embedding = cached_encode(self.embedder, resume_text)
+        job_embedding = cached_encode(self.embedder, job_text)
         semantic_similarity = cosine_similarity(resume_embedding, job_embedding)
 
         resume_skills = dedupe_preserve_order(resume_preview.skills + extract_skill_candidates(resume_text))

@@ -26,7 +26,7 @@ const badgeVariants = cva(
 
 export type BadgeProps = React.ComponentPropsWithoutRef<"span"> &
   VariantProps<typeof badgeVariants> & {
-    render?: unknown;
+    render?: any;
   };
 
 function Badge({ className = "", variant = "default", render, ...props }: BadgeProps) {

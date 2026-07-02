@@ -5,7 +5,8 @@ import { cn } from "@/lib/utils";
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react";
 import { buttonVariants } from "@/components/optics/button";
 
-const Select = SelectPrimitive.Root;
+const Select = SelectPrimitive.Root as React.FC<React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>> & { displayName?: string };
+Select.displayName = "Select";
 
 type ButtonVariant = Parameters<typeof buttonVariants>[0] extends infer P
 	? P extends { variant?: infer V }
@@ -221,7 +222,7 @@ function SelectScrollDownButton({
 
 
 Select.displayName = "Select";
-SelectContent.displayName = "SelectContent";
+SelectContent.displayName = "SelectContent" as any;
 SelectGroup.displayName = "SelectGroup";
 SelectItem.displayName = "SelectItem";
 SelectLabel.displayName = "SelectLabel";

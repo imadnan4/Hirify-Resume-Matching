@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import importlib.util
 import logging
 from functools import lru_cache
 
@@ -20,6 +19,12 @@ class EmbeddingProvider:
 
 
 class HashingEmbeddingProvider(EmbeddingProvider):
+    """Degraded fallback when no ML embedding library is available.
+
+    Uses randomized hashing to produce pseudo-embeddings. These vectors
+    are NOT semantically meaningful — they provide only coarse lexical
+    similarity. Always prefer FastEmbedProvider for production use.
+    """
     def __init__(self, dimensions: int) -> None:
         self.dimensions = dimensions
 
@@ -40,29 +45,48 @@ class HashingEmbeddingProvider(EmbeddingProvider):
         return [value / norm for value in vector]
 
 
-class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
+class FastEmbedProvider(EmbeddingProvider):
     def __init__(self, model_name: str) -> None:
         self.model_name = model_name
         self._model = None
 
     def _get_model(self):
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
+            from fastembed import TextEmbedding
 
-            self._model = SentenceTransformer(self.model_name)
+            self._model = TextEmbedding(model_name=self.model_name)
         return self._model
 
     def encode(self, text: str) -> list[float]:
         model = self._get_model()
-        vector = model.encode(text, normalize_embeddings=True)
-        return [float(value) for value in vector.tolist()]
+        embeddings = list(model.embed([text]))
+        if not embeddings:
+            return [0.0] * settings.embedding_dimensions
+        return [float(value) for value in embeddings[0]]
 
 
 @lru_cache(maxsize=1)
 def get_embedding_provider() -> EmbeddingProvider:
     preferred = settings.embedding_backend.lower()
-    if preferred in {"auto", "sentence-transformers", "sentence_transformers"}:
-        if importlib.util.find_spec("sentence_transformers") is not None:
-            return SentenceTransformerEmbeddingProvider(settings.embedding_model_name)
-        logger.warning("sentence-transformers is unavailable; falling back to hashing embeddings")
+    if preferred in {"auto", "fastembed"}:
+        try:
+            import fastembed  # noqa: F401
+
+            logger.info("Using FastEmbed provider with model %s", settings.embedding_model_name)
+            return FastEmbedProvider(settings.embedding_model_name)
+        except ImportError:
+            logger.warning("fastembed is unavailable; falling back to hashing embeddings")
     return HashingEmbeddingProvider(settings.embedding_dimensions)
+
+
+# Text-hash → embedding cache (process-local, lightweight)
+_embedding_cache: dict[str, list[float]] = {}
+
+
+def cached_encode(provider: EmbeddingProvider, text: str) -> list[float]:
+    cache_key = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    if cache_key in _embedding_cache:
+        return _embedding_cache[cache_key]
+    result = provider.encode(text)
+    _embedding_cache[cache_key] = result
+    return result

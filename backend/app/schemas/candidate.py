@@ -28,9 +28,6 @@ class CandidateBase(ORMModel):
     work_history: list[dict[str, Any]] | None = None
     education_history: list[dict[str, Any]] | None = None
     certifications: list[str] | None = None
-    languages: list[str] | None = None
-    projects: list[dict[str, Any]] | None = None
-    achievements: list[str] | None = None
     summary: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -54,9 +51,6 @@ class CandidateUpdate(BaseModel):
     work_history: list[dict[str, Any]] | None = None
     education_history: list[dict[str, Any]] | None = None
     certifications: list[str] | None = None
-    languages: list[str] | None = None
-    projects: list[dict[str, Any]] | None = None
-    achievements: list[str] | None = None
     summary: str | None = None
 
 

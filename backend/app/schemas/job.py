@@ -61,22 +61,6 @@ class JobDescriptionUpdate(BaseModel):
     status: str | None = None
 
 
-class ScrapeJobsRequest(BaseModel):
-    urls: list[str]
-
-
-class BulkJobCreateFailure(BaseModel):
-    url: str
-    error: str
-
-
-class BulkJobScrapeResponse(BaseModel):
-    successful: list[JobDescriptionBase]
-    failed: list[BulkJobCreateFailure]
-    total_scraped: int
-    total_failed: int
-
-
 class JobSkillsResponse(BaseModel):
     job_id: int
     title: str

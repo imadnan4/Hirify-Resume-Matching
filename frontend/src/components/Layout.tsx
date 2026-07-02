@@ -1,7 +1,11 @@
 import React, { ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/optics/sidebar'
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/optics/sidebar'
 import { AppSidebar } from './AppSidebar'
 import { ToastProvider } from './ui/toast'
 

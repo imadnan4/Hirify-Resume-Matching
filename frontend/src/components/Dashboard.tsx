@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import apiService from '../services/api'
 import { Button } from './ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
+import { Alert, AlertDescription } from './ui/alert'
 import { AnimatedBarChart, AnimatedLineChart, AnimatedPieChart } from './ui/animated-chart'
 
 interface DashboardStats {
@@ -34,22 +35,21 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true)
       setError(null)
-      
+
       const [resumeResponse, jobResponse, matchResponse] = await Promise.all([
         apiService.getResumes({ limit: 1000 }),
         apiService.getJobs({ limit: 1000 }),
         apiService.getMatches({ limit: 1000 })
       ])
-      
+
       const totalResumes = resumeResponse.total
       const totalJobs = jobResponse.total
       const matches = matchResponse.items
-      
-      // Calculate average match score
-      const averageMatchScore = matches.length > 0 
+
+      const averageMatchScore = matches.length > 0
         ? matches.reduce((sum, match) => sum + match.overall_score, 0) / matches.length
         : 0
-      
+
       setStats((prev) => ({
         ...prev,
         totalResumes,
@@ -72,9 +72,7 @@ const Dashboard: React.FC = () => {
 
     const groupedData = data.reduce((acc: Record<string, number>, item) => {
       const rawDate = item.created_at || item.posted_at
-      if (!rawDate) {
-        return acc
-      }
+      if (!rawDate) return acc
 
       const day = new Date(rawDate)
       const dayKey = day.toISOString().slice(0, 10)
@@ -93,18 +91,11 @@ const Dashboard: React.FC = () => {
 
   const processScoreDistribution = () => {
     if (!stats.matchData || stats.matchData.length === 0) {
-      return [
-        { name: 'No Data', value: 100, color: '#94A3B8' }
-      ]
+      return [{ name: 'No Data', value: 100, color: '#94A3B8' }]
     }
-    
-    const distribution = {
-      excellent: 0,
-      good: 0,
-      fair: 0,
-      poor: 0
-    }
-    
+
+    const distribution = { excellent: 0, good: 0, fair: 0, poor: 0 }
+
     stats.matchData.forEach(match => {
       const score = match.overall_score * 100
       if (score >= 80) distribution.excellent++
@@ -112,7 +103,7 @@ const Dashboard: React.FC = () => {
       else if (score >= 40) distribution.fair++
       else distribution.poor++
     })
-    
+
     return [
       { name: 'Excellent (80-100%)', value: distribution.excellent, color: '#22C55E' },
       { name: 'Good (60-79%)', value: distribution.good, color: '#0EA5E9' },
@@ -125,24 +116,27 @@ const Dashboard: React.FC = () => {
   const jobTrendData = useMemo(() => processTimeSeriesData(stats.jobData), [stats.jobData])
   const scoreDistribution = useMemo(() => processScoreDistribution(), [stats.matchData])
 
-  const StatCard: React.FC<{ title: string; value: string; color: string; loading?: boolean }> = ({ title, value, color, loading }) => {
-    return (
-      <Card className="border-border/60 bg-card/95 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardDescription>{title}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="animate-pulse">
-              <div className="h-8 w-20 rounded bg-muted"></div>
-            </div>
-          ) : (
-            <p className={`text-3xl font-semibold tracking-tight ${color}`}>{value}</p>
-          )}
-        </CardContent>
-      </Card>
-    )
-  }
+  const StatCard: React.FC<{
+    title: string
+    value: string
+    color: string
+    loading?: boolean
+  }> = ({ title, value, color, loading }) => (
+    <Card className="border-border/60 bg-card/95 shadow-sm">
+      <CardHeader className="pb-2">
+        <CardDescription>{title}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <div className="h-8 w-20 animate-pulse rounded bg-muted" />
+        ) : (
+          <p className={`text-3xl font-semibold tracking-tight ${color}`}>
+            {value}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  )
 
   return (
     <motion.div
@@ -156,52 +150,62 @@ const Dashboard: React.FC = () => {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle className="text-2xl">Dashboard</CardTitle>
-              <CardDescription>Operational summary of resumes, jobs, and match quality.</CardDescription>
+              <CardDescription>
+                Operational summary of resumes, jobs, and match quality.
+              </CardDescription>
             </div>
-            <Button onClick={fetchDashboardStats} disabled={loading} variant="secondary" size="lg" className="w-full sm:w-auto">
+            <Button
+              onClick={fetchDashboardStats}
+              disabled={loading}
+              variant="secondary"
+              size="lg"
+              className="w-full sm:w-auto"
+            >
               {loading ? 'Loading...' : 'Refresh Data'}
             </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50/90 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm font-medium text-red-700">{error}</p>
-              <Button onClick={() => setError(null)} variant="destructive" size="sm" className="w-full sm:w-auto">
-                Dismiss
-              </Button>
-            </div>
-          </div>
-        )}
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span>{error}</span>
+                <Button onClick={() => setError(null)} variant="destructive" size="sm" className="w-full sm:w-auto">
+                  Dismiss
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <StatCard 
-            title="Total Resumes" 
-            value={stats.totalResumes.toString()} 
-            color="text-sky-600" 
-            loading={loading}
-          />
-          <StatCard 
-            title="Available Jobs" 
-            value={stats.totalJobs.toString()} 
-            color="text-emerald-600" 
-            loading={loading}
-          />
-          <StatCard 
-            title="Average Match Score" 
-            value={`${(stats.averageMatchScore * 100).toFixed(1)}%`} 
-            color="text-indigo-600" 
-            loading={loading}
-          />
-        </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <StatCard
+              title="Total Resumes"
+              value={stats.totalResumes.toString()}
+              color="text-sky-600"
+              loading={loading}
+            />
+            <StatCard
+              title="Available Jobs"
+              value={stats.totalJobs.toString()}
+              color="text-emerald-600"
+              loading={loading}
+            />
+            <StatCard
+              title="Average Match Score"
+              value={`${(stats.averageMatchScore * 100).toFixed(1)}%`}
+              color="text-indigo-600"
+              loading={loading}
+            />
+          </div>
         </CardContent>
       </Card>
 
       <Card className="border-border/60 bg-card/95 shadow-sm">
         <CardHeader>
           <CardTitle>Analytics</CardTitle>
-          <CardDescription>EvilCharts-inspired motion styling with readable tooltips and compact axes.</CardDescription>
+          <CardDescription>
+            EvilCharts-inspired motion styling with readable tooltips and compact axes.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 md:space-y-6">
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -227,7 +231,6 @@ const Dashboard: React.FC = () => {
           />
         </CardContent>
       </Card>
-            
     </motion.div>
   )
 }

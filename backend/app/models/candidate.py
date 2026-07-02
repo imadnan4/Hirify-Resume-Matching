@@ -30,9 +30,6 @@ class Candidate(TimestampMixin, Base):
     work_history: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     education_history: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     certifications: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
-    languages: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
-    projects: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
-    achievements: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     resume = relationship("Resume", back_populates="candidate")

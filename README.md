@@ -1,140 +1,134 @@
 # Hirify
 
-Hirify is a resume and job matching app with a React frontend and a clean FastAPI backend.
+Open-source resume-to-job matching engine. Upload resumes, add job descriptions, and get AI-powered match scores with transparent breakdowns.
 
-The backend in this repo has been rebuilt around the actual frontend contract in:
+- **Frontend**: React + TypeScript + Vite + Tailwind CSS + Optics UI
+- **Backend**: FastAPI + SQLAlchemy 2 + Pydantic v2 + FastEmbed
+- **Document parsing**: PyMuPDF (PDF) + docx2txt (DOCX)
+- **Matching**: Hybrid keyword + semantic embedding scoring
 
-- `frontend/src/services/api.ts`
-- `docs/frontend-backend-contract.md`
+## Quick Start
 
-This README reflects the backend that is implemented now, not the older Celery/Redis/auth architecture that used to be documented here.
+```bash
+# Backend
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+fastapi dev app/main.py
 
-## Current Backend Status
-
-- Fresh FastAPI backend under `backend/`
-- Frontend-first API contract implemented
-- Resume ingestion for `PDF` and `DOCX`
-- Legacy `.doc` files are rejected in v1
-- Structured resume preview data for the current UI
-- Single match and many-to-many bulk match
-- Candidate records derived from processed resumes
-- Local default database is SQLite for easy development
-- Production path is Postgres/Neon, with `pgvector` support when available
-- Base install works without heavyweight ML packages
-- Optional transformer-based embeddings can be added through `backend/requirements-ml.txt`
-
-## Tech Stack
-
-### Frontend
-
-- React
-- TypeScript
-- Vite
-- Tailwind CSS
-
-### Backend
-
-- Python 3.12+
-- FastAPI
-- SQLAlchemy 2
-- Alembic
-- Pydantic v2
-- Uvicorn
-
-### Document Processing
-
-- PyMuPDF for PDF parsing
-- docx2txt for DOCX parsing
-
-### Matching
-
-- Weighted scoring:
-  - Skills: `0.40`
-  - Experience: `0.30`
-  - Education: `0.20`
-  - Additional: `0.10`
-- Base install uses deterministic hashing embeddings
-- Optional local embedding model support via `sentence-transformers`
-
-### Storage
-
-- Local dev default: SQLite
-- Production target: Postgres / Neon
-- Uploaded files stored on disk via configurable `UPLOAD_ROOT`
-
-## Backend Features
-
-### Resume Processing
-
-- `POST /api/v1/resumes/upload`
-- `POST /api/v1/resumes/bulk-upload`
-- `GET /api/v1/resumes/`
-- `GET /api/v1/resumes/{id}`
-- `GET /api/v1/resumes/{id}/status`
-- `GET /api/v1/resumes/{id}/preview`
-- `POST /api/v1/resumes/{id}/reprocess`
-- `PUT /api/v1/resumes/{id}`
-- `DELETE /api/v1/resumes/{id}`
-
-Each processed resume stores:
-
-- extracted text
-- structured preview data
-- processing status
-- optional embedding vector
-- candidate-facing normalized fields
-
-### Job Management
-
-- `POST /api/v1/jobs/`
-- `GET /api/v1/jobs/`
-- `GET /api/v1/jobs/{id}`
-- `PUT /api/v1/jobs/{id}`
-- `DELETE /api/v1/jobs/{id}`
-- `POST /api/v1/jobs/scrape`
-- `GET /api/v1/jobs/search/skills`
-- `GET /api/v1/jobs/{id}/skills`
-- `POST /api/v1/jobs/{id}/reprocess`
-
-### Matching
-
-- `POST /api/v1/matching/match`
-- `POST /api/v1/matching/bulk-match`
-- `GET /api/v1/matching/`
-- `GET /api/v1/matching/{id}`
-- `PUT /api/v1/matching/{id}`
-- `DELETE /api/v1/matching/{id}`
-- `GET /api/v1/matching/{id}/explanation`
-- `GET /api/v1/matching/stats`
-- `GET /api/v1/matching/top-matches`
-- `GET /api/v1/matching/job/{job_id}/candidates`
-
-Bulk matching uses the frontend's current many-to-many shape:
-
-```json
-{
-  "resume_ids": [1, 2, 3],
-  "job_ids": [10, 11],
-  "min_score_threshold": 0.5,
-  "include_explanations": true
-}
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev
 ```
 
-Only pairs meeting the threshold are persisted during bulk matching.
+Open http://localhost:3000 — the frontend proxies `/api` to the backend.
+
+## Architecture
+
+### Matching Engine
+
+The matching system uses a **hybrid approach** that combines lexical skill matching with semantic embeddings:
+
+| Component | Weight | Method |
+|-----------|--------|--------|
+| Skills | 40% | 55% keyword overlap + 45% embedding similarity |
+| Experience | 30% | Years comparison + semantic similarity |
+| Education | 20% | Degree level matching + semantic similarity |
+| Additional | 10% | Certifications, location, summary bonuses |
+
+Each match produces:
+- Overall score (0.0–1.0)
+- Per-category breakdowns
+- Matched and missing skills lists
+- Confidence level (high/medium/low)
+- Human-readable recommendation
+- Detailed explanation with reasons
+
+### Embeddings
+
+**Production**: FastEmbed with ONNX Runtime. Uses `BAAI/bge-small-en-v1.5` (384-dim). No PyTorch required — significantly lighter and faster cold start than sentence-transformers.
+
+**Fallback**: A deterministic hashing provider produces pseudo-embeddings for environments where ML libraries cannot be installed. This is a **degraded mode** — matching quality will be reduced. Always prefer the FastEmbed provider for production.
+
+Set `EMBEDDING_BACKEND=auto` (the default) to auto-detect FastEmbed availability. Set `EMBEDDING_BACKEND=hash` to force the fallback.
+
+### Resume Parsing
+
+PDFs are extracted with PyMuPDF (fast, accurate for digital documents). DOCX files via docx2txt. Extracted text passes through a purpose-built regex pipeline that detects:
+
+- Contact information (name, email, phone, location, URLs)
+- Work experience (job titles, companies, date ranges)
+- Education (degrees, institutions, graduation years)
+- Skills (against a curated vocabulary of 50+ tech skills)
+- Certifications and professional summaries
+
+### Database
+
+- **Development**: SQLite (zero-config, stored in `data/hirify.db`)
+- **Production**: PostgreSQL with optional `pgvector` extension for native vector operations. Falls back to JSON storage when pgvector is unavailable.
+
+Tables are auto-created on startup via `Base.metadata.create_all()`. Alembic migrations are available for production schema management.
+
+## API Endpoints
+
+### Resumes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/resumes/upload` | Upload a single resume |
+| POST | `/api/v1/resumes/bulk-upload` | Upload multiple resumes |
+| GET | `/api/v1/resumes/` | List resumes (paginated, filterable by status) |
+| GET | `/api/v1/resumes/{id}` | Get resume metadata |
+| GET | `/api/v1/resumes/{id}/status` | Get processing status and progress |
+| GET | `/api/v1/resumes/{id}/preview` | Get extracted structured data |
+| POST | `/api/v1/resumes/{id}/reprocess` | Re-trigger parsing pipeline |
+| PUT | `/api/v1/resumes/{id}` | Update resume metadata |
+| DELETE | `/api/v1/resumes/{id}` | Delete resume and file |
+
+### Jobs
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/jobs/` | Create a job description |
+| GET | `/api/v1/jobs/` | List jobs (paginated, filterable) |
+| GET | `/api/v1/jobs/{id}` | Get job details |
+| GET | `/api/v1/jobs/{id}/skills` | Get extracted skills for a job |
+| PUT | `/api/v1/jobs/{id}` | Update job description |
+| POST | `/api/v1/jobs/{id}/reprocess` | Re-extract skills and re-embed |
+| DELETE | `/api/v1/jobs/{id}` | Delete job description |
+| GET | `/api/v1/jobs/search/skills` | Find jobs by skill keywords |
+
+### Matching
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/v1/matching/match` | Single resume-to-job match |
+| POST | `/api/v1/matching/bulk-match` | Many-to-many bulk matching |
+| GET | `/api/v1/matching/` | List matches (paginated, filterable) |
+| GET | `/api/v1/matching/{id}` | Get match details |
+| GET | `/api/v1/matching/{id}/explanation` | Get match explanation |
+| PUT | `/api/v1/matching/{id}` | Update match record |
+| DELETE | `/api/v1/matching/{id}` | Delete match record |
+| GET | `/api/v1/matching/stats` | Aggregate match statistics |
+| GET | `/api/v1/matching/top-matches` | Top N matches by score |
+| GET | `/api/v1/matching/job/{job_id}/candidates` | Ranked candidates for a job |
 
 ### Candidates
 
-- `GET /api/v1/candidates/`
-- `GET /api/v1/candidates/{id}`
-- `PUT /api/v1/candidates/{id}`
-- `DELETE /api/v1/candidates/{id}`
-- `GET /api/v1/candidates/{id}/resume`
-- `GET /api/v1/candidates/search/by-skills`
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/v1/candidates/` | List candidates (paginated) |
+| GET | `/api/v1/candidates/{id}` | Get candidate details |
+| GET | `/api/v1/candidates/{id}/resume` | Get linked resume data |
+| PUT | `/api/v1/candidates/{id}` | Update candidate record |
+| DELETE | `/api/v1/candidates/{id}` | Delete candidate record |
+| GET | `/api/v1/candidates/search/by-skills` | Find candidates by skills |
 
-## API Response Conventions
+### API Conventions
 
-List endpoints return:
-
+All list endpoints return paginated responses:
 ```json
 {
   "items": [],
@@ -145,269 +139,114 @@ List endpoints return:
 }
 ```
 
-Match scores are returned in the `0..1` range. The frontend multiplies them by `100` for display.
-
-Resume preview responses are shaped for the current modal:
-
-```json
-{
-  "contact_info": {},
-  "summary": "string",
-  "work_experience": [],
-  "education": [],
-  "skills": [],
-  "certifications": [],
-  "processing_metadata": {}
-}
-```
-
-## Project Structure
-
-```text
-hirify/
-├── backend/
-│   ├── alembic/
-│   │   └── versions/
-│   ├── app/
-│   │   ├── api/
-│   │   │   └── routes/
-│   │   ├── core/
-│   │   ├── models/
-│   │   ├── schemas/
-│   │   └── services/
-│   ├── data/
-│   ├── tests/
-│   ├── main.py
-│   ├── requirements.txt
-│   └── requirements-ml.txt
-├── docs/
-├── frontend/
-└── README.md
-```
-
-## Local Development
-
-### Prerequisites
-
-- Python 3.12+
-- Node.js 18+
-
-### Backend
-
-```bash
-cd backend
-python -m venv .venv
-
-# Linux / macOS
-source .venv/bin/activate
-
-# Windows PowerShell
-# .venv\Scripts\Activate.ps1
-
-pip install -r requirements.txt
-```
-
-Optional local embedding model support:
-
-```bash
-pip install -r requirements-ml.txt
-```
-
-Run migrations if you want Alembic-managed schema setup:
-
-```bash
-alembic upgrade head
-```
-
-Start the API:
-
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-
-Useful URLs:
-
-- API root: `http://localhost:8000/`
-- Health: `http://localhost:8000/health`
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-Note:
-
-- The app also creates tables on startup through `init_db()`, which makes local boot simpler.
-- `.doc` files are intentionally not supported in v1.
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The frontend expects the backend at `http://localhost:8000` unless `VITE_API_URL` is set.
+Match scores are in `0.0–1.0` range. The frontend multiplies by 100 for display percentages.
 
 ## Configuration
 
-The most useful backend environment variables are:
+Environment variables (with defaults):
 
-```env
-DATABASE_URL=sqlite:///backend/data/hirify.db
-UPLOAD_ROOT=backend/data/uploads
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,https://hirify-frontend.netlify.app
-EMBEDDING_BACKEND=auto
-EMBEDDING_MODEL_NAME=BAAI/bge-small-en-v1.5
-EMBEDDING_DIMENSIONS=384
-SQL_ECHO=false
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_URL` | `sqlite:///data/hirify.db` | Database connection string |
+| `UPLOAD_ROOT` | `data/uploads` | File upload storage path |
+| `CORS_ORIGINS` | `http://localhost:3000,...` | Allowed CORS origins |
+| `EMBEDDING_BACKEND` | `auto` | `auto`, `fastembed`, or `hash` |
+| `EMBEDDING_MODEL_NAME` | `BAAI/bge-small-en-v1.5` | Embedding model identifier |
+| `EMBEDDING_DIMENSIONS` | `384` | Embedding vector dimension |
+| `SQL_ECHO` | `false` | Log all SQL queries |
+| `DEBUG` | `false` | Enable debug mode |
+| `MATCH_WEIGHT_SKILLS` | `0.40` | Skills weight in scoring |
+| `MATCH_WEIGHT_EXPERIENCE` | `0.30` | Experience weight in scoring |
+| `MATCH_WEIGHT_EDUCATION` | `0.20` | Education weight in scoring |
+| `MATCH_WEIGHT_ADDITIONAL` | `0.10` | Additional factors weight |
 
-`EMBEDDING_BACKEND` behavior:
-
-- `auto`: use `sentence-transformers` if installed, otherwise fall back to hashing embeddings
-- `hash`: always use the lightweight hashing backend
-- `sentence-transformers`: prefer the local transformer embedding path
-
-## Railway / Neon Notes
-
-This backend is structured so it can move from local SQLite to Railway + Neon cleanly.
-
-Recommended production setup:
-
-- Set `DATABASE_URL` to your Neon Postgres connection string
-- Mount persistent storage on Railway and point `UPLOAD_ROOT` to it
-- Set `CORS_ORIGINS` to your frontend origin(s), for example `https://hirify-frontend.netlify.app`
-- Keep `EMBEDDING_BACKEND=hash` for the lightest deploy, or install `requirements-ml.txt` if you want local transformer embeddings
-
-Example production startup command:
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
-```
-
-When running on Postgres, the backend attempts `CREATE EXTENSION IF NOT EXISTS vector` during startup. If `pgvector` is unavailable, embeddings still fall back to JSON storage.
-
-### Private Deployment Notes
-
-Netlify frontend:
+## Project Structure
 
 ```
-https://hirify-frontend.netlify.app/
-```
-
-Neon database connection string:
-
-```
-postgresql://authenticator:NEON_AUTHENTICATOR_PASSWORD@NEON_PROJECT_ID-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
-```
-
-### Railway CLI Deployment (Backend)
-
-Run these commands from the repo root unless noted:
-
-```bash
-# install Railway CLI
-npm install -g @railway/cli
-
-# login
-railway login
-
-# enter backend folder
-cd backend
-
-# create or link a Railway project
-railway init
-
-# if no service exists, create one (interactive)
-railway add
-
-# select/link the service (interactive)
-railway service
-
-# set required env vars
-railway variables set DATABASE_URL='postgresql://authenticator:NEON_AUTHENTICATOR_PASSWORD@NEON_PROJECT_ID-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require' \
-  CORS_ORIGINS='["https://hirify-frontend.netlify.app"]' \
-  EMBEDDING_BACKEND='hash'
-
-# deploy using Dockerfile in backend/
-railway up
-
-# get the service domain
-railway domain
-```
-
-Current Railway backend domain:
-
-```
-https://your-backend.up.railway.app
-```
-
-### Deployment Troubleshooting (Railway + Neon)
-
-Common issues we hit and the fixes:
-
-1) `pydantic_settings.exceptions.SettingsError: error parsing value for field "cors_origins"`
-
-- Cause: `CORS_ORIGINS` was set as a plain string, but Pydantic tries to parse list fields as JSON.
-- Fix: Set `CORS_ORIGINS` as a JSON array string.
-
-```bash
-railway variables set CORS_ORIGINS='["https://hirify-frontend.netlify.app"]'
-```
-
-2) 500 errors + browser CORS errors ("No 'Access-Control-Allow-Origin' header")
-
-- Cause: Database user lacked privileges (`permission denied for table jobs/resumes/matches`).
-- Fix: Use the Neon owner role for `DATABASE_URL` in Railway, then redeploy/restart.
-
-```bash
-railway variables set DATABASE_URL='postgresql://neondb_owner:NEON_OWNER_PASSWORD@NEON_PROJECT_ID.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require'
-```
-
-3) Railway CLI timeouts (`reqwest error ... backboard.railway.com/graphql/v2`)
-
-- Cause: Temporary Railway API/network timeouts.
-- Fix: Retry `railway up` or redeploy from the Railway web UI.
-
-4) Frontend not using the backend URL
-
-- Cause: `.env.example` is only a template; Vite reads `.env`, `.env.local`, `.env.production`.
-- Fix: Set `VITE_API_URL` in Netlify env vars or create `frontend/.env` for local testing.
-
-```env
-VITE_API_URL=https://your-backend.up.railway.app
+hirify/
+├── backend/
+│   ├── alembic/              # Database migrations
+│   │   └── versions/
+│   ├── app/
+│   │   ├── api/routes/       # FastAPI route handlers
+│   │   ├── core/             # Config, database setup
+│   │   ├── models/           # SQLAlchemy ORM models
+│   │   ├── schemas/          # Pydantic request/response models
+│   │   └── services/         # Business logic (matching, parsing, embeddings)
+│   ├── data/                 # SQLite DB and uploads (gitignored)
+│   ├── tests/                # Contract tests
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── components/       # React components
+│   │   │   ├── optics/       # Optics UI design system
+│   │   │   └── ui/           # Component re-exports and utilities
+│   │   ├── services/         # API client
+│   │   └── lib/              # Shared utilities
+│   ├── package.json
+│   └── vite.config.ts
+├── netlify.toml              # Frontend deploy config
+└── README.md
 ```
 
 ## Testing
 
-Backend contract tests live in `backend/tests/`.
-
-Run them with:
-
 ```bash
-python -m pytest backend/tests -q
+cd backend
+pip install python-docx  # needed for test DOCX generation
+python -m pytest tests/ -v
 ```
 
-The current contract suite covers:
+The contract test suite validates the full pipeline end-to-end:
+- Health endpoint
+- PDF and DOCX upload and parsing
+- Legacy `.doc` rejection
+- Structured data extraction (skills, experience, education, contact info)
+- Single and bulk matching
+- Match statistics and ranked candidates
+- CRUD operations across all resources
 
-- health check
-- resume upload
-- resume preview
-- resume reprocess
-- DOCX support
-- `.doc` rejection
-- job creation
-- single matching
-- many-to-many bulk matching
-- stats and ranked candidates
-- delete flows
+## Production Deployment
 
-## Important Notes
+### Railway + Neon (Backend)
 
-- This backend is synchronous by design in v1 so it matches the current frontend behavior immediately.
-- There is no Celery, Redis, JWT auth, or background worker layer in the current backend.
-- The backend contract is driven by the mounted frontend, not the older architecture notes.
-- The active migration is `backend/alembic/versions/0001_frontend_first_contract.py`.
+```bash
+cd backend
+railway init
+railway service
+
+# Set production variables
+railway variables set \
+  DATABASE_URL='postgresql://...' \
+  CORS_ORIGINS='["https://your-frontend.netlify.app"]' \
+  EMBEDDING_BACKEND='auto'
+
+railway up
+```
+
+The Dockerfile in `backend/` uses `fastapi run app/main.py` and includes FastEmbed for production-quality embeddings.
+
+### Netlify (Frontend)
+
+The `netlify.toml` is pre-configured for a Vite SPA. Set `VITE_API_URL` in Netlify environment variables to your backend URL.
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| API framework | FastAPI 0.115+ |
+| ORM | SQLAlchemy 2.0+ |
+| Schema validation | Pydantic v2 |
+| Embeddings | FastEmbed (ONNX Runtime) |
+| PDF parsing | PyMuPDF |
+| DOCX parsing | docx2txt |
+| NLP/Text | Custom regex pipeline + keyword matching |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS v4, Optics UI |
+| Charts | Recharts |
+| HTTP client | Axios (frontend), HTTPX (test) |
+| Testing | Pytest |
 
 ## License
 
-This project is licensed under the MIT License. See `LICENSE` if present in the repository.
+MIT

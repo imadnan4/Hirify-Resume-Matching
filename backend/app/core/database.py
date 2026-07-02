@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.models.base import Base
 
 
-engine_kwargs: dict[str, object] = {"echo": settings.sql_echo, "future": True}
+engine_kwargs: dict[str, object] = {"echo": settings.sql_echo}
 if settings.database_url.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
 

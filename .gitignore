@@ -1,4 +1,6 @@
 # Python
+.agents/
+skills-lock.json
 __pycache__/
 *.py[cod]
 *$py.class
@@ -11,8 +13,6 @@ downloads/
 eggs/
 .eggs/
 lib/
-!frontend/src/lib/
-!frontend/src/lib/**
 lib64/
 parts/
 sdist/
@@ -181,8 +181,7 @@ uploads/
 
 
 
-# Alembic
-alembic/versions/*.py
+# Alembic (keep migration versions in git for open source)
 
 # Testing
 .pytest_cache/

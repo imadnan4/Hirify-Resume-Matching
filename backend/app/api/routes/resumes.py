@@ -23,7 +23,7 @@ from app.schemas.resume import (
 )
 from app.services.candidate_service import upsert_candidate_from_resume
 from app.services.document_extractor import DocumentExtractor, UnsupportedDocumentTypeError
-from app.services.embedding_service import get_embedding_provider
+from app.services.embedding_service import cached_encode, get_embedding_provider
 from app.services.resume_parser import build_candidate_payload, parse_resume_text
 
 router = APIRouter()
@@ -71,7 +71,7 @@ def _process_resume(db: Session, resume: Resume) -> ResumePreviewResponse:
 
         resume.extracted_text = text
         resume.structured_data = preview.model_dump()
-        resume.embedding = embedder.encode(text)
+        resume.embedding = cached_encode(embedder, text)
         resume.status = "completed"
         resume.processed_date = datetime.now(timezone.utc)
         resume.processing_errors = None

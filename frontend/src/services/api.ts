@@ -217,11 +217,6 @@ class ApiService {
     return response.data
   }
 
-  async scrapeJobs(urls: string[]) {
-    const response = await api.post('/api/v1/jobs/scrape', { urls })
-    return response.data
-  }
-
   async searchJobsBySkills(skills: string, minMatches: number = 1) {
     const response = await api.get('/api/v1/jobs/search/skills', {
       params: { skills, min_matches: minMatches }

@@ -188,8 +188,5 @@ def build_candidate_payload(preview: ResumePreviewResponse, source_text: str) ->
         "work_history": [item.model_dump() for item in preview.work_experience],
         "education_history": [item.model_dump() for item in preview.education],
         "certifications": preview.certifications,
-        "languages": [],
-        "projects": [],
-        "achievements": [],
         "summary": preview.summary,
     }
