@@ -1,0 +1,41 @@
+import * as React from "react";
+import { Input as InputPrimitive } from "@base-ui/react/input";
+import { buttonVariants } from "@/components/optics/button";
+import { cn } from "@/lib/utils";
+
+type InputVariant = Parameters<typeof buttonVariants>[0] extends infer P
+  ? P extends { variant?: infer V }
+    ? V
+    : never
+  : never;
+
+export type InputProps = React.ComponentPropsWithoutRef<typeof InputPrimitive> & {
+  variant?: InputVariant;
+};
+
+const Input = React.forwardRef<React.ElementRef<typeof InputPrimitive>, InputProps>(
+  ({ className = "", type = "text", variant, ...props }, ref) => {
+    return (
+      <InputPrimitive
+        ref={ref}
+        type={type}
+        data-slot="input"
+        className={cn(
+          "bg-input/20 dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/30 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 h-7 rounded-md border px-2 py-0.5 text-sm transition-colors file:h-6 file:text-xs/relaxed file:font-medium focus-visible:ring-2 aria-invalid:ring-2 md:text-xs/relaxed file:text-foreground placeholder:text-muted-foreground w-full min-w-0 outline-none file:inline-flex file:border-0 file:bg-transparent disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
+          variant &&
+            buttonVariants({
+              variant,
+              animation: "colors",
+              className: "cursor-text",
+            }),
+          className,
+        )}
+        {...props}
+      />
+    );
+  },
+);
+
+Input.displayName = "Input";
+
+export { Input };
