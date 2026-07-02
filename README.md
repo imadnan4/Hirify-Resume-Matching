@@ -164,29 +164,84 @@ Environment variables (with defaults):
 
 ```
 hirify/
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 ├── backend/
-│   ├── alembic/              # Database migrations
-│   │   └── versions/
+│   ├── alembic/
+│   │   ├── versions/
+│   │   │   └── 0001_frontend_first_contract.py
+│   │   ├── env.py
+│   │   ├── script.py.mako
+│   │   └── alembic.ini
 │   ├── app/
-│   │   ├── api/routes/       # FastAPI route handlers
-│   │   ├── core/             # Config, database setup
-│   │   ├── models/           # SQLAlchemy ORM models
-│   │   ├── schemas/          # Pydantic request/response models
-│   │   └── services/         # Business logic (matching, parsing, embeddings)
-│   ├── data/                 # SQLite DB and uploads (gitignored)
-│   ├── tests/                # Contract tests
+│   │   ├── api/routes/
+│   │   │   ├── candidates.py
+│   │   │   ├── jobs.py
+│   │   │   ├── matching.py
+│   │   │   └── resumes.py
+│   │   ├── core/
+│   │   │   ├── config.py
+│   │   │   └── database.py
+│   │   ├── models/
+│   │   │   ├── base.py
+│   │   │   ├── candidate.py
+│   │   │   ├── job.py
+│   │   │   ├── match.py
+│   │   │   ├── resume.py
+│   │   │   └── types.py
+│   │   ├── schemas/
+│   │   │   ├── candidate.py
+│   │   │   ├── common.py
+│   │   │   ├── job.py
+│   │   │   ├── match.py
+│   │   │   └── resume.py
+│   │   ├── services/
+│   │   │   ├── candidate_service.py
+│   │   │   ├── document_extractor.py
+│   │   │   ├── embedding_service.py
+│   │   │   ├── job_service.py
+│   │   │   ├── matching_service.py
+│   │   │   ├── resume_parser.py
+│   │   │   └── text_processing.py
+│   │   └── main.py
+│   ├── tests/
+│   │   ├── conftest.py
+│   │   └── test_contract.py
+│   ├── .env.example
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── components/       # React components
-│   │   │   ├── optics/       # Optics UI design system
-│   │   │   └── ui/           # Component re-exports and utilities
-│   │   ├── services/         # API client
-│   │   └── lib/              # Shared utilities
+│   │   ├── components/
+│   │   │   ├── optics/       # Optics UI design system components
+│   │   │   ├── ui/           # Re-exports, toast, charts, confirm-dialog
+│   │   │   ├── Analytics.tsx
+│   │   │   ├── AppSidebar.tsx
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── JobManager.tsx
+│   │   │   ├── Layout.tsx
+│   │   │   ├── MatchingInterface.tsx
+│   │   │   └── ResumeManager.tsx
+│   │   ├── hooks/
+│   │   │   └── use-mobile.ts
+│   │   ├── lib/
+│   │   │   └── utils.ts
+│   │   ├── services/
+│   │   │   └── api.ts        # Frontend-backend contract
+│   │   ├── App.tsx
+│   │   ├── globals.css
+│   │   └── main.tsx
+│   ├── .env.example
+│   ├── components.json
+│   ├── index.html
 │   ├── package.json
+│   ├── tailwind.config.js
+│   ├── tsconfig.json
 │   └── vite.config.ts
-├── netlify.toml              # Frontend deploy config
+├── .env.example
+├── .gitignore
+├── netlify.toml
 └── README.md
 ```
 
