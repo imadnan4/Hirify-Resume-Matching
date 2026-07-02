@@ -302,6 +302,4 @@ The `netlify.toml` is pre-configured for a Vite SPA. Set `VITE_API_URL` in Netli
 | HTTP client | Axios (frontend), HTTPX (test) |
 | Testing | Pytest |
 
-## License
 
-MIT
