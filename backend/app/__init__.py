@@ -1,1 +1,0 @@
-"""Hirify backend application package."""
