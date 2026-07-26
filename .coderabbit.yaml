@@ -1,0 +1,12 @@
+reviews:
+  high_level_summary: true
+  review_status: true
+  poem: false
+  auto_review:
+    base_branches:
+      - main
+  path_instructions:
+    - path: "backend/**"
+      instructions: "Flag missing Python type hints as HIGH. Flag unhandled exceptions in async endpoints as MEDIUM. Check Flask/FastAPI route structure and missing input validation."
+    - path: "**"
+      instructions: "Flag security issues like hardcoded secrets, SQL injection risks, and XSS vulnerabilities as HIGH."
