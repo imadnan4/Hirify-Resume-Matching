@@ -11,6 +11,7 @@ from app.services.text_processing import (
     most_common_tokens,
     normalize_whitespace,
 )
+from sqlalchemy import cast, or_, String
 from sqlalchemy.orm import Session
 
 from app.models.job import JobDescription
@@ -36,8 +37,17 @@ def process_job_payload(title: str, description: str, requirements: str | None =
 def search_jobs_by_skills(
     db: Session, searched_skills: list[str], min_matches: int, limit: int = 100
 ) -> list[dict]:
+    # Database-level coarse filter: keep rows that contain at least one searched skill
+    query = db.query(JobDescription)
+    if searched_skills:
+        skill_filters = [
+            cast(JobDescription.extracted_skills, String).contains(skill)
+            for skill in searched_skills
+        ]
+        query = query.filter(or_(*skill_filters))
+
     results: list[dict] = []
-    for job in db.query(JobDescription).yield_per(100):
+    for job in query.yield_per(100):
         _, matched = keyword_overlap_score(job.extracted_skills or [], searched_skills)
         if len(matched) >= min_matches:
             results.append(

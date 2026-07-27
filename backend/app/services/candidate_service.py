@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from sqlalchemy import cast, or_, String
 from sqlalchemy.orm import Session
 
 from app.models.candidate import Candidate
@@ -22,9 +23,20 @@ def upsert_candidate_from_resume(
     return candidate
 
 
-def search_candidates_by_skills(db: Session, searched_skills: list[str], min_matches: int) -> list[dict]:
+def search_candidates_by_skills(
+    db: Session, searched_skills: list[str], min_matches: int, limit: int = 100
+) -> list[dict]:
+    # Database-level coarse filter: keep rows that contain at least one searched skill
+    query = db.query(Candidate)
+    if searched_skills:
+        skill_filters = [
+            cast(Candidate.skills, String).contains(skill)
+            for skill in searched_skills
+        ]
+        query = query.filter(or_(*skill_filters))
+
     results: list[dict] = []
-    for candidate in db.query(Candidate).yield_per(100):
+    for candidate in query.yield_per(100):
         score, matched, _ = keyword_overlap_score(candidate.skills or [], searched_skills)
         if len(matched) >= min_matches:
             results.append(
@@ -38,6 +50,8 @@ def search_candidates_by_skills(db: Session, searched_skills: list[str], min_mat
                 }
             )
     results.sort(key=lambda item: (-item["_score"], -item["skill_matches"], item["id"]))
+    if limit:
+        results = results[:limit]
     for result in results:
         result.pop("_score", None)
     return results
