@@ -146,7 +146,7 @@ def reprocess_job(job_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
     _apply_job_processing(job)
     db.commit()
     db.refresh(job)
-    return {"message": "Job description reprocessing started"}
+    return {"message": "Job description reprocessing completed"}
 
 
 @router.delete("/{job_id}")

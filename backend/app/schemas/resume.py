@@ -23,7 +23,6 @@ class ResumeListBase(ORMModel):
 
 class ResumeBase(ResumeListBase):
     """Full resume detail including extracted content — use only for authorized access."""
-    file_path: str
     extracted_text: str | None = None
     structured_data: dict[str, Any] | None = None
     processing_errors: dict[str, Any] | None = None

@@ -97,7 +97,7 @@ def test_resume_upload_preview_and_reprocess_contract(client):
 
     reprocess_response = client.post(f"/api/v1/resumes/{resume_id}/reprocess")
     assert reprocess_response.status_code == 200
-    assert reprocess_response.json()["message"] == "Resume reprocessing started"
+    assert reprocess_response.json()["message"] == "Resume reprocessing completed"
 
 
 def test_docx_supported_and_doc_rejected(client):

@@ -61,7 +61,54 @@ def _sync_candidate_metadata(preview: ResumePreviewResponse, text: str) -> Resum
     return preview
 
 
+def _process_resume_by_id(resume_id: int) -> ResumePreviewResponse:
+    """Worker-safe: creates its own session, loads Resume, processes, returns preview."""
+    from app.core.database import SessionLocal
+
+    db = SessionLocal()
+    try:
+        resume = db.get(Resume, resume_id)
+        if not resume:
+            raise ValueError(f"Resume {resume_id} not found")
+        resume.status = "processing"
+        resume.processing_errors = None
+        db.commit()
+
+        try:
+            text = extractor.extract_text(resume.file_path)
+            if not text.strip():
+                raise ValueError("No readable text could be extracted from the document")
+
+            preview = _sync_candidate_metadata(parse_resume_text(text), text)
+
+            resume.extracted_text = text
+            resume.structured_data = preview.model_dump()
+            resume.embedding = cached_encode(embedder, text)
+            resume.status = "completed"
+            resume.processed_date = datetime.now(timezone.utc)
+            resume.processing_errors = None
+            upsert_candidate_from_resume(db, resume=resume, preview=preview, source_text=text)
+            db.commit()
+            return preview
+        except UnsupportedDocumentTypeError as exc:
+            resume.status = "failed"
+            resume.processing_errors = {"message": str(exc)}
+            db.commit()
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except HTTPException:
+            raise
+        except Exception as exc:
+            resume.status = "failed"
+            resume.processing_errors = {"message": str(exc)}
+            db.commit()
+            logger.exception("Resume processing failed for resume %s", resume.id)
+            raise HTTPException(status_code=500, detail="Resume processing failed") from exc
+    finally:
+        db.close()
+
+
 def _process_resume(db: Session, resume: Resume) -> ResumePreviewResponse:
+    """Direct processing within an existing session (used by sync endpoints)."""
     resume.status = "processing"
     resume.processing_errors = None
     db.commit()
@@ -118,7 +165,7 @@ async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_
         if path.exists():
             path.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail="Failed to persist resume record")
-    await asyncio.to_thread(_process_resume, db, resume)
+    await asyncio.to_thread(_process_resume_by_id, resume.id)
     db.refresh(resume)
     return ResumeUploadResponse(
         id=resume.id,
@@ -154,7 +201,7 @@ async def bulk_upload_resumes(files: list[UploadFile] = File(...), db: Session =
                 if path.exists():
                     path.unlink(missing_ok=True)
                 raise
-            await asyncio.to_thread(_process_resume, db, resume)
+            await asyncio.to_thread(_process_resume_by_id, resume.id)
             db.refresh(resume)
             successful.append(
                 ResumeUploadResponse(
