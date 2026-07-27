@@ -24,7 +24,7 @@ def upsert_candidate_from_resume(
 
 def search_candidates_by_skills(db: Session, searched_skills: list[str], min_matches: int) -> list[dict]:
     results: list[dict] = []
-    for candidate in db.query(Candidate).all():
+    for candidate in db.query(Candidate).yield_per(100):
         score, matched, _ = keyword_overlap_score(candidate.skills or [], searched_skills)
         if len(matched) >= min_matches:
             results.append(

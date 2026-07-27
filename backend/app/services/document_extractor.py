@@ -8,8 +8,6 @@ class UnsupportedDocumentTypeError(ValueError):
 
 
 class DocumentExtractor:
-    supported_suffixes = {".pdf", ".docx"}
-
     def extract_text(self, file_path: str | Path) -> str:
         path = Path(file_path)
         suffix = path.suffix.lower()

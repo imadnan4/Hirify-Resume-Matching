@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from uuid import uuid4
@@ -26,6 +27,7 @@ from app.services.document_extractor import DocumentExtractor, UnsupportedDocume
 from app.services.embedding_service import cached_encode, get_embedding_provider
 from app.services.resume_parser import build_candidate_payload, parse_resume_text
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 extractor = DocumentExtractor()
 embedder = get_embedding_provider()
@@ -90,10 +92,11 @@ def _process_resume(db: Session, resume: Resume) -> ResumePreviewResponse:
         resume.status = "failed"
         resume.processing_errors = {"message": str(exc)}
         db.commit()
-        raise HTTPException(status_code=500, detail=f"Resume processing failed: {exc}") from exc
+        logger.exception("Resume processing failed for resume %s", resume.id)
+        raise HTTPException(status_code=500, detail="Resume processing failed") from exc
 
 
-@router.post("/upload", response_model=ResumeUploadResponse)
+@router.post("/upload", response_model=ResumeUploadResponse, status_code=201)
 async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_db)):
     suffix = _validate_upload(file)
     path, content = await _save_upload(file, suffix)
@@ -118,7 +121,7 @@ async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_
     )
 
 
-@router.post("/bulk-upload", response_model=BulkResumeUploadResponse)
+@router.post("/bulk-upload", response_model=BulkResumeUploadResponse, status_code=201)
 async def bulk_upload_resumes(files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
     successful: list[ResumeUploadResponse] = []
     failed: list[BulkResumeFailure] = []

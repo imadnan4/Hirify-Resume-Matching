@@ -152,9 +152,9 @@ class MatchingService:
         if resume_preview.processing_metadata:
             candidate_years = resume_preview.processing_metadata.get("estimated_years_experience")
         if candidate_years is None:
-            from app.services.resume_parser import build_candidate_payload
+            from app.services.text_processing import estimate_resume_years
 
-            candidate_years = build_candidate_payload(resume_preview, resume_text).get("years_experience")
+            candidate_years = estimate_resume_years(resume_text)
 
         if required_years and candidate_years:
             ratio = min(candidate_years / max(required_years, 1), 1.0)

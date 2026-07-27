@@ -3,6 +3,7 @@ from __future__ import annotations
 from time import perf_counter
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -26,6 +27,7 @@ from app.schemas.resume import ResumePreviewResponse
 from app.services.matching_service import MatchComputation, matching_service
 
 router = APIRouter()
+_existing_matches: dict[tuple[int, int], Match] = {}
 
 
 def _build_computation(*, resume: Resume, job: JobDescription) -> MatchComputation:
@@ -46,7 +48,7 @@ def _build_computation(*, resume: Resume, job: JobDescription) -> MatchComputati
 def _persist_match(
     db: Session, *, resume: Resume, job: JobDescription, computation: MatchComputation
 ) -> tuple[Match, MatchSummary]:
-    match = (
+    match = _existing_matches.get((resume.id, job.id)) if _existing_matches else (
         db.query(Match)
         .filter(Match.resume_id == resume.id, Match.job_id == job.id)
         .first()
@@ -79,7 +81,7 @@ def _persist_match(
     return match, summary
 
 
-@router.post("/match")
+@router.post("/match", status_code=201)
 def create_match(payload: SingleMatchRequest, db: Session = Depends(get_db)):
     resume = db.get(Resume, payload.resume_id)
     if not resume:
@@ -145,6 +147,20 @@ def bulk_match(payload: BulkMatchRequest, db: Session = Depends(get_db)):
                 summary.explanation = None
             summaries.append(summary)
     db.commit()
+
+    # Prefetch existing matches for all resume/job pairs to avoid N+1 queries
+    _existing_matches.clear()
+    if payload.resume_ids and payload.job_ids:
+        existing = (
+            db.query(Match)
+            .filter(
+                Match.resume_id.in_(payload.resume_ids),
+                Match.job_id.in_(payload.job_ids),
+            )
+            .all()
+        )
+        _existing_matches.update({(m.resume_id, m.job_id): m for m in existing})
+
     return BulkMatchResponse(
         total_matches=len(summaries),
         matches=summaries,
@@ -154,16 +170,17 @@ def bulk_match(payload: BulkMatchRequest, db: Session = Depends(get_db)):
 
 @router.get("/stats", response_model=MatchStatsResponse)
 def get_match_stats(db: Session = Depends(get_db)):
-    matches = db.query(Match).all()
-    total = len(matches)
-    average = round(sum(item.overall_score for item in matches) / total, 4) if total else 0.0
-    high = sum(1 for item in matches if item.overall_score >= 0.8)
-    low = sum(1 for item in matches if item.overall_score < 0.4)
+    row = db.query(
+        func.count(Match.id).label("total"),
+        func.coalesce(func.round(func.avg(Match.overall_score), 4), 0.0).label("average"),
+        func.count().filter(Match.overall_score >= 0.8).label("high"),
+        func.count().filter(Match.overall_score < 0.4).label("low"),
+    ).one()
     return MatchStatsResponse(
-        total_matches=total,
-        average_score=average,
-        high_score_matches=high,
-        low_score_matches=low,
+        total_matches=row.total,
+        average_score=float(row.average),
+        high_score_matches=row.high,
+        low_score_matches=row.low,
     )
 
 
@@ -199,9 +216,14 @@ def get_ranked_candidates(
         .limit(limit)
         .all()
     )
+    resume_ids = [match.resume_id for match in matches]
+    resume_map = {
+        r.id: r
+        for r in db.query(Resume).filter(Resume.id.in_(resume_ids)).all()
+    } if resume_ids else {}
     results: list[RankedCandidateResponse] = []
     for index, match in enumerate(matches, start=1):
-        resume = db.get(Resume, match.resume_id)
+        resume = resume_map.get(match.resume_id)
         candidate_name = None
         if resume and resume.candidate:
             candidate_name = resume.candidate.full_name

@@ -62,7 +62,13 @@ class FastEmbedProvider(EmbeddingProvider):
         embeddings = list(model.embed([text]))
         if not embeddings:
             return [0.0] * settings.embedding_dimensions
-        return [float(value) for value in embeddings[0]]
+        vector = [float(value) for value in embeddings[0]]
+        if len(vector) != settings.embedding_dimensions:
+            raise RuntimeError(
+                f"Model '{self.model_name}' produced {len(vector)}-dim embeddings, "
+                f"expected {settings.embedding_dimensions} (check EMBEDDING_DIMENSIONS)"
+            )
+        return vector
 
 
 @lru_cache(maxsize=1)

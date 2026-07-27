@@ -5,6 +5,9 @@ from __future__ import annotations
 from alembic import op
 import sqlalchemy as sa
 
+from app.core.config import settings
+from app.models.types import VectorOrJSON
+
 
 revision = "0001_frontend_first_contract"
 down_revision = None
@@ -32,7 +35,7 @@ def upgrade() -> None:
         sa.Column("extracted_skills", sa.JSON(), nullable=True),
         sa.Column("processing_errors", sa.JSON(), nullable=True),
         sa.Column("status", sa.String(length=32), nullable=False, server_default="active"),
-        sa.Column("embedding", sa.JSON(), nullable=True),
+        sa.Column("embedding", VectorOrJSON(settings.embedding_dimensions), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     )
@@ -49,7 +52,7 @@ def upgrade() -> None:
         sa.Column("extracted_text", sa.Text(), nullable=True),
         sa.Column("structured_data", sa.JSON(), nullable=True),
         sa.Column("processing_errors", sa.JSON(), nullable=True),
-        sa.Column("embedding", sa.JSON(), nullable=True),
+        sa.Column("embedding", VectorOrJSON(settings.embedding_dimensions), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     )

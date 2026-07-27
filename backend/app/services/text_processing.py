@@ -98,7 +98,7 @@ PHONE_RE = re.compile(r"(?P<phone>(?:\+?\d[\d()\-\s]{7,}\d))")
 URL_RE = re.compile(r"https?://\S+|www\.\S+", re.IGNORECASE)
 YEARS_RE = re.compile(r"(?P<years>\d{1,2})\+?\s+(?:years|yrs)", re.IGNORECASE)
 DATE_RANGE_RE = re.compile(
-    r"(?P<start>(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)?[a-z]*\.?\s*\d{4}|\d{4})\s*[-–to]+\s*(?P<end>present|current|now|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)?[a-z]*\.?\s*\d{4}|\d{4})",
+    r"(?P<start>(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)?[a-z]*\.?\s*\d{4}|\d{4})\s*(?:-|–|to)\s*(?P<end>present|current|now|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)?[a-z]*\.?\s*\d{4}|\d{4})",
     re.IGNORECASE,
 )
 

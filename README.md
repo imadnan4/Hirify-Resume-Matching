@@ -162,7 +162,7 @@ Environment variables (with defaults):
 
 ## Project Structure
 
-```
+```text
 hirify/
 ├── .github/
 │   └── workflows/

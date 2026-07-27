@@ -69,7 +69,7 @@ def test_health_endpoint(client):
 
 def test_resume_upload_preview_and_reprocess_contract(client):
     response = upload_resume(client, "resume.pdf", build_resume_pdf_bytes(), "application/pdf")
-    assert response.status_code == 200, response.text
+    assert response.status_code == 201, response.text
     payload = response.json()
     resume_id = payload["id"]
     assert payload["filename"] == "resume.pdf"
@@ -107,8 +107,10 @@ def test_docx_supported_and_doc_rejected(client):
         build_resume_docx_bytes(),
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
-    assert docx_response.status_code == 200, docx_response.text
-    preview = client.get(f"/api/v1/resumes/{docx_response.json()['id']}/preview").json()
+    assert docx_response.status_code == 201, docx_response.text
+    preview_response = client.get(f"/api/v1/resumes/{docx_response.json()['id']}/preview")
+    assert preview_response.status_code == 200, preview_response.text
+    preview = preview_response.json()
     assert isinstance(preview["skills"], list)
     assert "python" in [item.lower() for item in preview["skills"]]
 
@@ -121,13 +123,17 @@ def test_docx_supported_and_doc_rejected(client):
 
 
 def test_jobs_and_matching_contract_many_to_many_bulk(client):
-    resume1 = upload_resume(client, "resume-a.pdf", build_resume_pdf_bytes(), "application/pdf").json()
-    resume2 = upload_resume(
+    resume1_response = upload_resume(client, "resume-a.pdf", build_resume_pdf_bytes(), "application/pdf")
+    assert resume1_response.status_code == 201, resume1_response.text
+    resume1 = resume1_response.json()
+    resume2_response = upload_resume(
         client,
         "resume-b.docx",
         build_resume_docx_bytes(),
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ).json()
+    )
+    assert resume2_response.status_code == 201, resume2_response.text
+    resume2 = resume2_response.json()
 
     job1_response = client.post(
         "/api/v1/jobs/",
@@ -142,11 +148,11 @@ def test_jobs_and_matching_contract_many_to_many_bulk(client):
             "experience_level": "mid",
         },
     )
-    assert job1_response.status_code == 200, job1_response.text
+    assert job1_response.status_code == 201, job1_response.text
     job1 = job1_response.json()
     assert isinstance(job1["extracted_skills"], list)
 
-    job2 = client.post(
+    job2_response = client.post(
         "/api/v1/jobs/",
         json={
             "title": "Backend Engineer",
@@ -155,13 +161,15 @@ def test_jobs_and_matching_contract_many_to_many_bulk(client):
             "requirements": "2+ years with Python, FastAPI, Docker and SQL.",
             "source": "manual",
         },
-    ).json()
+    )
+    assert job2_response.status_code == 201, job2_response.text
+    job2 = job2_response.json()
 
     single_match = client.post(
         "/api/v1/matching/match",
         json={"resume_id": resume1["id"], "job_id": job1["id"]},
     )
-    assert single_match.status_code == 200, single_match.text
+    assert single_match.status_code == 201, single_match.text
     single_payload = single_match.json()
     assert 0 <= single_payload["overall_score"] <= 1
 
@@ -169,7 +177,7 @@ def test_jobs_and_matching_contract_many_to_many_bulk(client):
         "/api/v1/matching/match",
         json={"resume_id": resume1["id"], "job_id": job1["id"]},
     )
-    assert repeat_single.status_code == 200
+    assert repeat_single.status_code == 201
 
     bulk_match = client.post(
         "/api/v1/matching/bulk-match",

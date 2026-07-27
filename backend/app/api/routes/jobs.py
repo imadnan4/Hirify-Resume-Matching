@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -18,26 +19,31 @@ from app.schemas.job import (
     JobSkillsResponse,
 )
 from app.services.embedding_service import cached_encode, get_embedding_provider
-from app.services.job_service import process_job_payload
-from app.services.text_processing import dedupe_preserve_order, keyword_overlap_score
+from app.services.job_service import process_job_payload, search_jobs_by_skills as service_search_jobs_by_skills
+from app.services.text_processing import dedupe_preserve_order
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 embedder = get_embedding_provider()
 
 
 def _apply_job_processing(job: JobDescription) -> None:
-    processed = process_job_payload(job.title, job.description, job.requirements)
-    job.structured_data = processed["structured_data"]
-    job.extracted_skills = processed["extracted_skills"]
-    job.embedding = cached_encode(
-        embedder,
-        "\n".join(part for part in [job.title, job.description, job.requirements or ""] if part),
-    )
-    job.processed_date = datetime.now(timezone.utc)
-    job.processing_errors = None
+    try:
+        processed = process_job_payload(job.title, job.description, job.requirements)
+        job.structured_data = processed["structured_data"]
+        job.extracted_skills = processed["extracted_skills"]
+        job.embedding = cached_encode(
+            embedder,
+            "\n".join(part for part in [job.title, job.description, job.requirements or ""] if part),
+        )
+        job.processed_date = datetime.now(timezone.utc)
+        job.processing_errors = None
+    except Exception as exc:
+        job.processing_errors = {"message": str(exc)}
+        logger.exception("Job processing failed for job %s", job.id)
 
 
-@router.post("/", response_model=JobDescriptionBase)
+@router.post("/", response_model=JobDescriptionBase, status_code=201)
 def create_job(payload: JobDescriptionCreate, db: Session = Depends(get_db)):
     job = JobDescription(**payload.model_dump())
     _apply_job_processing(job)
@@ -84,19 +90,10 @@ def search_jobs_by_skills(
     db: Session = Depends(get_db),
 ):
     searched_skills = dedupe_preserve_order(skills.split(","))
-    matches: list[JobSearchMatch] = []
-    for job in db.query(JobDescription).all():
-        _, matched, _ = keyword_overlap_score(job.extracted_skills or [], searched_skills)
-        if len(matched) >= min_matches:
-            matches.append(
-                JobSearchMatch(
-                    id=job.id,
-                    title=job.title,
-                    company=job.company,
-                    skill_matches=len(matched),
-                    matched_skills=matched,
-                )
-            )
+    matches = [
+        JobSearchMatch(**item)
+        for item in service_search_jobs_by_skills(db, searched_skills, min_matches)
+    ]
     return JobSearchBySkillsResponse(
         jobs=matches,
         total_matches=len(matches),
@@ -133,7 +130,9 @@ def update_job(job_id: int, payload: JobDescriptionUpdate, db: Session = Depends
         raise HTTPException(status_code=404, detail="Job description not found")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(job, field, value)
-    _apply_job_processing(job)
+    content_fields = {"title", "description", "requirements"}
+    if content_fields & set(payload.model_dump(exclude_unset=True).keys()):
+        _apply_job_processing(job)
     db.commit()
     db.refresh(job)
     return JobDescriptionBase.model_validate(job)
