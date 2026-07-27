@@ -33,10 +33,12 @@ def process_job_payload(title: str, description: str, requirements: str | None =
     }
 
 
-def search_jobs_by_skills(db: Session, searched_skills: list[str], min_matches: int) -> list[dict]:
+def search_jobs_by_skills(
+    db: Session, searched_skills: list[str], min_matches: int, limit: int = 100
+) -> list[dict]:
     results: list[dict] = []
     for job in db.query(JobDescription).yield_per(100):
-        _, matched, _ = keyword_overlap_score(job.extracted_skills or [], searched_skills)
+        score, matched, _ = keyword_overlap_score(job.extracted_skills or [], searched_skills)
         if len(matched) >= min_matches:
             results.append(
                 {
@@ -49,6 +51,8 @@ def search_jobs_by_skills(db: Session, searched_skills: list[str], min_matches: 
                 }
             )
     results.sort(key=lambda item: (-item["_score"], item["id"]))
+    if limit:
+        results = results[:limit]
     for result in results:
         result.pop("_score", None)
     return results

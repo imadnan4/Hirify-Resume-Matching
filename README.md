@@ -172,8 +172,8 @@ hirify/
 │   │   ├── versions/
 │   │   │   └── 0001_frontend_first_contract.py
 │   │   ├── env.py
-│   │   ├── script.py.mako
-│   │   └── alembic.ini
+│   │   └── script.py.mako
+│   ├── alembic.ini
 │   ├── app/
 │   │   ├── api/routes/
 │   │   │   ├── candidates.py

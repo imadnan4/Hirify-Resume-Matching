@@ -4,7 +4,7 @@ from time import perf_counter
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.core.database import get_db
 from app.models.job import JobDescription
@@ -27,7 +27,6 @@ from app.schemas.resume import ResumePreviewResponse
 from app.services.matching_service import MatchComputation, matching_service
 
 router = APIRouter()
-_existing_matches: dict[tuple[int, int], Match] = {}
 
 
 def _build_computation(*, resume: Resume, job: JobDescription) -> MatchComputation:
@@ -46,13 +45,21 @@ def _build_computation(*, resume: Resume, job: JobDescription) -> MatchComputati
 
 
 def _persist_match(
-    db: Session, *, resume: Resume, job: JobDescription, computation: MatchComputation
+    db: Session,
+    *,
+    resume: Resume,
+    job: JobDescription,
+    computation: MatchComputation,
+    existing_lookup: dict[tuple[int, int], Match] | None = None,
 ) -> tuple[Match, MatchSummary]:
-    match = _existing_matches.get((resume.id, job.id)) if _existing_matches else (
-        db.query(Match)
-        .filter(Match.resume_id == resume.id, Match.job_id == job.id)
-        .first()
-    )
+    if existing_lookup is not None:
+        match = existing_lookup.get((resume.id, job.id))
+    else:
+        match = (
+            db.query(Match)
+            .filter(Match.resume_id == resume.id, Match.job_id == job.id)
+            .first()
+        )
     if match is None:
         match = Match(resume_id=resume.id, job_id=job.id)
         db.add(match)
@@ -111,7 +118,7 @@ def create_match(payload: SingleMatchRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/bulk-match", response_model=BulkMatchResponse)
-def bulk_match(payload: BulkMatchRequest, db: Session = Depends(get_db)):
+def bulk_match(payload: BulkMatchRequest, db: Session = Depends(get_db)) -> BulkMatchResponse:
     started = perf_counter()
     resumes = {
         item.id: item
@@ -130,6 +137,19 @@ def bulk_match(payload: BulkMatchRequest, db: Session = Depends(get_db)):
     if not jobs:
         raise HTTPException(status_code=404, detail="No job descriptions found")
 
+    # Prefetch existing matches for all resume/job pairs to avoid N+1 queries
+    existing_lookup: dict[tuple[int, int], Match] = {}
+    if payload.resume_ids and payload.job_ids:
+        existing = (
+            db.query(Match)
+            .filter(
+                Match.resume_id.in_(payload.resume_ids),
+                Match.job_id.in_(payload.job_ids),
+            )
+            .all()
+        )
+        existing_lookup = {(m.resume_id, m.job_id): m for m in existing}
+
     summaries: list[MatchSummary] = []
     for job_id in payload.job_ids:
         job = jobs.get(job_id)
@@ -142,25 +162,14 @@ def bulk_match(payload: BulkMatchRequest, db: Session = Depends(get_db)):
             computation = _build_computation(resume=resume, job=job)
             if computation.overall_score < payload.min_score_threshold:
                 continue
-            _, summary = _persist_match(db, resume=resume, job=job, computation=computation)
+            _, summary = _persist_match(
+                db, resume=resume, job=job, computation=computation,
+                existing_lookup=existing_lookup,
+            )
             if not payload.include_explanations:
                 summary.explanation = None
             summaries.append(summary)
     db.commit()
-
-    # Prefetch existing matches for all resume/job pairs to avoid N+1 queries
-    _existing_matches.clear()
-    if payload.resume_ids and payload.job_ids:
-        existing = (
-            db.query(Match)
-            .filter(
-                Match.resume_id.in_(payload.resume_ids),
-                Match.job_id.in_(payload.job_ids),
-            )
-            .all()
-        )
-        _existing_matches.update({(m.resume_id, m.job_id): m for m in existing})
-
     return BulkMatchResponse(
         total_matches=len(summaries),
         matches=summaries,
@@ -169,7 +178,7 @@ def bulk_match(payload: BulkMatchRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/stats", response_model=MatchStatsResponse)
-def get_match_stats(db: Session = Depends(get_db)):
+def get_match_stats(db: Session = Depends(get_db)) -> MatchStatsResponse:
     row = db.query(
         func.count(Match.id).label("total"),
         func.coalesce(func.round(func.avg(Match.overall_score), 4), 0.0).label("average"),
@@ -205,7 +214,7 @@ def get_ranked_candidates(
     job_id: int,
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
-):
+) -> list[RankedCandidateResponse]:
     job = db.get(JobDescription, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job description not found")
@@ -219,7 +228,9 @@ def get_ranked_candidates(
     resume_ids = [match.resume_id for match in matches]
     resume_map = {
         r.id: r
-        for r in db.query(Resume).filter(Resume.id.in_(resume_ids)).all()
+        for r in db.query(Resume)
+        .options(selectinload(Resume.candidate))
+        .filter(Resume.id.in_(resume_ids)).all()
     } if resume_ids else {}
     results: list[RankedCandidateResponse] = []
     for index, match in enumerate(matches, start=1):

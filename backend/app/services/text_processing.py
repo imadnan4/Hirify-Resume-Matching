@@ -97,8 +97,9 @@ EMAIL_RE = re.compile(r"(?P<email>[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})", re.IG
 PHONE_RE = re.compile(r"(?P<phone>(?:\+?\d[\d()\-\s]{7,}\d))")
 URL_RE = re.compile(r"https?://\S+|www\.\S+", re.IGNORECASE)
 YEARS_RE = re.compile(r"(?P<years>\d{1,2})\+?\s+(?:years|yrs)", re.IGNORECASE)
+_MONTH_RE = r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
 DATE_RANGE_RE = re.compile(
-    r"(?P<start>(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)?[a-z]*\.?\s*\d{4}|\d{4})\s*(?:-|–|to)\s*(?P<end>present|current|now|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)?[a-z]*\.?\s*\d{4}|\d{4})",
+    rf"(?P<start>(?:{_MONTH_RE}\.?\s*\d{4}|\d{4}))\s*(?:-|\u2013|to)\s*(?P<end>present|current|now|(?:{_MONTH_RE}\.?\s*\d{4}|\d{4}))",
     re.IGNORECASE,
 )
 
