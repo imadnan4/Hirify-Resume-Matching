@@ -214,8 +214,9 @@ async def bulk_upload_resumes(files: list[UploadFile] = File(...), db: Session =
             )
         except HTTPException as exc:
             failed.append(BulkResumeFailure(filename=file.filename or "unknown", error=str(exc.detail)))
-        except Exception as exc:
-            failed.append(BulkResumeFailure(filename=file.filename or "unknown", error=str(exc)))
+        except Exception:
+            logger.exception("Bulk upload failed for file %s", file.filename or "unknown")
+            failed.append(BulkResumeFailure(filename=file.filename or "unknown", error="Upload processing failed"))
     return BulkResumeUploadResponse(
         successful=successful,
         failed=failed,
@@ -278,7 +279,7 @@ def reprocess_resume(resume_id: int, db: Session = Depends(get_db)) -> dict[str,
     resume.embedding = None
     db.commit()
     _process_resume(db, resume)
-    return {"message": "Resume reprocessing started"}
+    return {"message": "Resume reprocessing completed"}
 
 
 @router.get("/{resume_id}", response_model=ResumeBase)
@@ -307,11 +308,15 @@ def delete_resume(resume_id: int, db: Session = Depends(get_db)) -> dict[str, st
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
     file_path = Path(resume.file_path)
+    if file_path.exists():
+        for attempt in range(3):
+            try:
+                file_path.unlink()
+                break
+            except OSError:
+                if attempt == 2:
+                    logger.exception("Failed to delete uploaded file after 3 attempts: %s", file_path)
+                    raise HTTPException(status_code=500, detail="Failed to clean up uploaded file")
     db.delete(resume)
     db.commit()
-    if file_path.exists():
-        try:
-            file_path.unlink()
-        except OSError:
-            pass
     return {"message": "Resume deleted successfully"}
