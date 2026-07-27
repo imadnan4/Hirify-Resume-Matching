@@ -23,7 +23,7 @@ class Resume(TimestampMixin, Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     processed_date: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False, index=True)
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     structured_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     processing_errors: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)

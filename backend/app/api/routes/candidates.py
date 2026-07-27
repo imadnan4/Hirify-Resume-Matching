@@ -26,7 +26,7 @@ def search_by_skills(
     skills: str = Query(...),
     min_matches: int = Query(1, ge=1),
     db: Session = Depends(get_db),
-):
+) -> CandidateSearchBySkillsResponse:
     searched_skills = dedupe_preserve_order(skills.split(","))
     matches = [CandidateSkillMatch(**item) for item in search_candidates_by_skills(db, searched_skills, min_matches)]
     return CandidateSearchBySkillsResponse(
@@ -41,7 +41,7 @@ def list_candidates(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     db: Session = Depends(get_db),
-):
+) -> CandidateListResponse:
     query = db.query(Candidate)
     total = query.count()
     items = [CandidateBase.model_validate(item) for item in query.order_by(Candidate.id.desc()).offset(skip).limit(limit)]
@@ -49,7 +49,7 @@ def list_candidates(
 
 
 @router.get("/{candidate_id}/resume", response_model=CandidateResumeResponse)
-def get_candidate_resume(candidate_id: int, db: Session = Depends(get_db)):
+def get_candidate_resume(candidate_id: int, db: Session = Depends(get_db)) -> CandidateResumeResponse:
     candidate = db.get(Candidate, candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
@@ -68,7 +68,7 @@ def get_candidate_resume(candidate_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{candidate_id}", response_model=CandidateBase)
-def get_candidate(candidate_id: int, db: Session = Depends(get_db)):
+def get_candidate(candidate_id: int, db: Session = Depends(get_db)) -> CandidateBase:
     candidate = db.get(Candidate, candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
@@ -76,7 +76,7 @@ def get_candidate(candidate_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{candidate_id}", response_model=CandidateBase)
-def update_candidate(candidate_id: int, payload: CandidateUpdate, db: Session = Depends(get_db)):
+def update_candidate(candidate_id: int, payload: CandidateUpdate, db: Session = Depends(get_db)) -> CandidateBase:
     candidate = db.get(Candidate, candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")
@@ -88,7 +88,7 @@ def update_candidate(candidate_id: int, payload: CandidateUpdate, db: Session = 
 
 
 @router.delete("/{candidate_id}")
-def delete_candidate(candidate_id: int, db: Session = Depends(get_db)):
+def delete_candidate(candidate_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
     candidate = db.get(Candidate, candidate_id)
     if not candidate:
         raise HTTPException(status_code=404, detail="Candidate not found")

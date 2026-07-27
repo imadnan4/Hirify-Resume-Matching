@@ -85,8 +85,9 @@ def get_embedding_provider() -> EmbeddingProvider:
     return HashingEmbeddingProvider(settings.embedding_dimensions)
 
 
-# Text-hash → embedding cache (process-local, lightweight)
+# Text-hash → embedding cache (process-local, bounded to MAX_CACHE_SIZE entries)
 _embedding_cache: dict[str, list[float]] = {}
+_MAX_CACHE_SIZE = 2048
 
 
 def cached_encode(provider: EmbeddingProvider, text: str) -> list[float]:
@@ -94,5 +95,8 @@ def cached_encode(provider: EmbeddingProvider, text: str) -> list[float]:
     if cache_key in _embedding_cache:
         return _embedding_cache[cache_key]
     result = provider.encode(text)
+    if len(_embedding_cache) >= _MAX_CACHE_SIZE:
+        # Evict the oldest entry (dict insertion order is preserved in Python 3.7+)
+        _embedding_cache.pop(next(iter(_embedding_cache)))
     _embedding_cache[cache_key] = result
     return result

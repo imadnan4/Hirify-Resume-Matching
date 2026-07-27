@@ -40,4 +40,11 @@ def init_db() -> None:
             except Exception:
                 # The app can still function without the extension when using JSON fallback.
                 pass
-    Base.metadata.create_all(bind=engine)
+    try:
+        import alembic.config
+        import alembic.command
+        from pathlib import Path as _Path
+        alembic_cfg = alembic.config.Config(str(_Path(__file__).resolve().parents[2] / "alembic.ini"))
+        alembic.command.upgrade(alembic_cfg, "head")
+    except Exception:
+        Base.metadata.create_all(bind=engine)

@@ -8,20 +8,25 @@ from pydantic import BaseModel, Field
 from app.schemas.common import ORMModel, PaginatedResponse
 
 
-class ResumeBase(ORMModel):
+class ResumeListBase(ORMModel):
+    """Minimal resume metadata for list responses — excludes sensitive fields."""
     id: int
     filename: str
     file_type: str
     file_size: int
-    file_path: str
     upload_date: datetime
     processed_date: datetime | None = None
     status: Literal["pending", "processing", "completed", "failed"]
+    created_at: datetime
+    updated_at: datetime
+
+
+class ResumeBase(ResumeListBase):
+    """Full resume detail including extracted content — use only for authorized access."""
+    file_path: str
     extracted_text: str | None = None
     structured_data: dict[str, Any] | None = None
     processing_errors: dict[str, Any] | None = None
-    created_at: datetime
-    updated_at: datetime
 
 
 class ResumeUpdate(BaseModel):
@@ -94,4 +99,4 @@ class ResumePreviewResponse(BaseModel):
     processing_metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-ResumeListResponse = PaginatedResponse[ResumeBase]
+ResumeListResponse = PaginatedResponse[ResumeListBase]

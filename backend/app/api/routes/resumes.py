@@ -16,6 +16,7 @@ from app.schemas.resume import (
     BulkResumeFailure,
     BulkResumeUploadResponse,
     ResumeBase,
+    ResumeListBase,
     ResumeListResponse,
     ResumePreviewResponse,
     ResumeStatusResponse,
@@ -173,7 +174,7 @@ def list_resumes(
     if status:
         query = query.filter(Resume.status == status)
     total = query.count()
-    items = [ResumeBase.model_validate(item) for item in query.order_by(Resume.id.desc()).offset(skip).limit(limit)]
+    items = [ResumeListBase.model_validate(item) for item in query.order_by(Resume.id.desc()).offset(skip).limit(limit)]
     return build_page(items=items, total=total, skip=skip, limit=limit)
 
 

@@ -28,9 +28,15 @@ class Settings(BaseSettings):
         default_factory=lambda: [
             "http://localhost:3000",
             "http://127.0.0.1:3000",
-            "https://hirify-frontend.netlify.app",
         ]
     )
+
+    @field_validator("cors_origins")
+    @classmethod
+    def validate_cors_origins(cls, value: list[str]) -> list[str]:
+        if not value:
+            raise ValueError("CORS_ORIGINS must not be empty; required for production")
+        return value
 
     database_url: str = f"sqlite:///{(DEFAULT_DATA_DIR / 'hirify.db').as_posix()}"
     sql_echo: bool = False

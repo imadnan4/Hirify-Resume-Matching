@@ -102,6 +102,7 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
         sa.UniqueConstraint("resume_id", "job_id", name="uq_matches_resume_job"),
     )
+    op.create_index("ix_resumes_status", "resumes", ["status"])
     op.create_index("ix_matches_resume_id", "matches", ["resume_id"])
     op.create_index("ix_matches_job_id", "matches", ["job_id"])
 
@@ -109,6 +110,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("ix_matches_job_id", table_name="matches")
     op.drop_index("ix_matches_resume_id", table_name="matches")
+    op.drop_index("ix_resumes_status", table_name="resumes")
     op.drop_table("matches")
     op.drop_table("candidates")
     op.drop_table("resumes")

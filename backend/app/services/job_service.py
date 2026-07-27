@@ -38,7 +38,7 @@ def search_jobs_by_skills(
 ) -> list[dict]:
     results: list[dict] = []
     for job in db.query(JobDescription).yield_per(100):
-        score, matched, _ = keyword_overlap_score(job.extracted_skills or [], searched_skills)
+        _, matched = keyword_overlap_score(job.extracted_skills or [], searched_skills)
         if len(matched) >= min_matches:
             results.append(
                 {
