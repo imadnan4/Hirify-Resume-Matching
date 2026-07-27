@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -108,10 +109,16 @@ async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_
         file_path=str(path),
         status="pending",
     )
-    db.add(resume)
-    db.commit()
-    db.refresh(resume)
-    _process_resume(db, resume)
+    try:
+        db.add(resume)
+        db.commit()
+        db.refresh(resume)
+    except Exception:
+        db.rollback()
+        if path.exists():
+            path.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail="Failed to persist resume record")
+    await asyncio.to_thread(_process_resume, db, resume)
     db.refresh(resume)
     return ResumeUploadResponse(
         id=resume.id,
@@ -127,6 +134,7 @@ async def bulk_upload_resumes(files: list[UploadFile] = File(...), db: Session =
     successful: list[ResumeUploadResponse] = []
     failed: list[BulkResumeFailure] = []
     for file in files:
+        path: Path | None = None
         try:
             suffix = _validate_upload(file)
             path, content = await _save_upload(file, suffix)
@@ -137,10 +145,16 @@ async def bulk_upload_resumes(files: list[UploadFile] = File(...), db: Session =
                 file_path=str(path),
                 status="pending",
             )
-            db.add(resume)
-            db.commit()
-            db.refresh(resume)
-            _process_resume(db, resume)
+            try:
+                db.add(resume)
+                db.commit()
+                db.refresh(resume)
+            except Exception:
+                db.rollback()
+                if path.exists():
+                    path.unlink(missing_ok=True)
+                raise
+            await asyncio.to_thread(_process_resume, db, resume)
             db.refresh(resume)
             successful.append(
                 ResumeUploadResponse(
