@@ -44,7 +44,7 @@ def _apply_job_processing(job: JobDescription) -> None:
 
 
 @router.post("/", response_model=JobDescriptionBase, status_code=201)
-def create_job(payload: JobDescriptionCreate, db: Session = Depends(get_db)):
+def create_job(payload: JobDescriptionCreate, db: Session = Depends(get_db)) -> JobDescriptionBase:
     job = JobDescription(**payload.model_dump())
     _apply_job_processing(job)
     db.add(job)
@@ -63,7 +63,7 @@ def list_jobs(
     experience_level: str | None = Query(None),
     status: str | None = Query(None),
     db: Session = Depends(get_db),
-):
+) -> JobListResponse:
     query = db.query(JobDescription)
     if company:
         query = query.filter(JobDescription.company.ilike(f"%{company}%"))
@@ -88,7 +88,7 @@ def search_jobs_by_skills(
     skills: str = Query(...),
     min_matches: int = Query(1, ge=1),
     db: Session = Depends(get_db),
-):
+) -> JobSearchBySkillsResponse:
     searched_skills = dedupe_preserve_order(skills.split(","))
     matches = [
         JobSearchMatch(**item)
@@ -102,7 +102,7 @@ def search_jobs_by_skills(
 
 
 @router.get("/{job_id}", response_model=JobDescriptionBase)
-def get_job(job_id: int, db: Session = Depends(get_db)):
+def get_job(job_id: int, db: Session = Depends(get_db)) -> JobDescriptionBase:
     job = db.get(JobDescription, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job description not found")
@@ -110,7 +110,7 @@ def get_job(job_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{job_id}/skills", response_model=JobSkillsResponse)
-def get_job_skills(job_id: int, db: Session = Depends(get_db)):
+def get_job_skills(job_id: int, db: Session = Depends(get_db)) -> JobSkillsResponse:
     job = db.get(JobDescription, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job description not found")
@@ -124,7 +124,7 @@ def get_job_skills(job_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{job_id}", response_model=JobDescriptionBase)
-def update_job(job_id: int, payload: JobDescriptionUpdate, db: Session = Depends(get_db)):
+def update_job(job_id: int, payload: JobDescriptionUpdate, db: Session = Depends(get_db)) -> JobDescriptionBase:
     job = db.get(JobDescription, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job description not found")
@@ -139,7 +139,7 @@ def update_job(job_id: int, payload: JobDescriptionUpdate, db: Session = Depends
 
 
 @router.post("/{job_id}/reprocess")
-def reprocess_job(job_id: int, db: Session = Depends(get_db)):
+def reprocess_job(job_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
     job = db.get(JobDescription, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job description not found")
@@ -150,7 +150,7 @@ def reprocess_job(job_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/{job_id}")
-def delete_job(job_id: int, db: Session = Depends(get_db)):
+def delete_job(job_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
     job = db.get(JobDescription, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job description not found")

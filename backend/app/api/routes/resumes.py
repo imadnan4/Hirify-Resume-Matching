@@ -99,7 +99,7 @@ def _process_resume(db: Session, resume: Resume) -> ResumePreviewResponse:
 
 
 @router.post("/upload", response_model=ResumeUploadResponse, status_code=201)
-async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_db)) -> ResumeUploadResponse:
     suffix = _validate_upload(file)
     path, content = await _save_upload(file, suffix)
     resume = Resume(
@@ -130,7 +130,7 @@ async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_
 
 
 @router.post("/bulk-upload", response_model=BulkResumeUploadResponse, status_code=201)
-async def bulk_upload_resumes(files: list[UploadFile] = File(...), db: Session = Depends(get_db)):
+async def bulk_upload_resumes(files: list[UploadFile] = File(...), db: Session = Depends(get_db)) -> BulkResumeUploadResponse:
     successful: list[ResumeUploadResponse] = []
     failed: list[BulkResumeFailure] = []
     for file in files:
@@ -183,7 +183,7 @@ def list_resumes(
     limit: int = Query(100, ge=1, le=1000),
     status: str | None = Query(None),
     db: Session = Depends(get_db),
-):
+) -> ResumeListResponse:
     query = db.query(Resume)
     if status:
         query = query.filter(Resume.status == status)
@@ -193,7 +193,7 @@ def list_resumes(
 
 
 @router.get("/{resume_id}/status", response_model=ResumeStatusResponse)
-def get_resume_status(resume_id: int, db: Session = Depends(get_db)):
+def get_resume_status(resume_id: int, db: Session = Depends(get_db)) -> ResumeStatusResponse:
     resume = db.get(Resume, resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
@@ -209,7 +209,7 @@ def get_resume_status(resume_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{resume_id}/preview", response_model=ResumePreviewResponse)
-def preview_resume_data(resume_id: int, db: Session = Depends(get_db)):
+def preview_resume_data(resume_id: int, db: Session = Depends(get_db)) -> ResumePreviewResponse:
     resume = db.get(Resume, resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
@@ -219,7 +219,7 @@ def preview_resume_data(resume_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{resume_id}/reprocess")
-def reprocess_resume(resume_id: int, db: Session = Depends(get_db)):
+def reprocess_resume(resume_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
     resume = db.get(Resume, resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
@@ -235,7 +235,7 @@ def reprocess_resume(resume_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{resume_id}", response_model=ResumeBase)
-def get_resume(resume_id: int, db: Session = Depends(get_db)):
+def get_resume(resume_id: int, db: Session = Depends(get_db)) -> ResumeBase:
     resume = db.get(Resume, resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
@@ -243,7 +243,7 @@ def get_resume(resume_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{resume_id}", response_model=ResumeBase)
-def update_resume(resume_id: int, payload: ResumeUpdate, db: Session = Depends(get_db)):
+def update_resume(resume_id: int, payload: ResumeUpdate, db: Session = Depends(get_db)) -> ResumeBase:
     resume = db.get(Resume, resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
@@ -255,7 +255,7 @@ def update_resume(resume_id: int, payload: ResumeUpdate, db: Session = Depends(g
 
 
 @router.delete("/{resume_id}")
-def delete_resume(resume_id: int, db: Session = Depends(get_db)):
+def delete_resume(resume_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
     resume = db.get(Resume, resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")

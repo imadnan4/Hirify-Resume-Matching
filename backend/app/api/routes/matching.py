@@ -89,7 +89,7 @@ def _persist_match(
 
 
 @router.post("/match", status_code=201)
-def create_match(payload: SingleMatchRequest, db: Session = Depends(get_db)):
+def create_match(payload: SingleMatchRequest, db: Session = Depends(get_db)) -> dict[str, object]:
     resume = db.get(Resume, payload.resume_id)
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
@@ -199,7 +199,7 @@ def get_top_matches(
     job_id: int | None = Query(None),
     resume_id: int | None = Query(None),
     db: Session = Depends(get_db),
-):
+) -> list[MatchBase]:
     query = db.query(Match)
     if job_id is not None:
         query = query.filter(Match.job_id == job_id)
@@ -265,7 +265,7 @@ def list_matches(
     min_score: float | None = Query(None, ge=0, le=1),
     max_score: float | None = Query(None, ge=0, le=1),
     db: Session = Depends(get_db),
-):
+) -> MatchListResponse:
     query = db.query(Match)
     if resume_id is not None:
         query = query.filter(Match.resume_id == resume_id)
@@ -281,7 +281,7 @@ def list_matches(
 
 
 @router.get("/{match_id}/explanation", response_model=MatchExplanationResponse)
-def get_match_explanation(match_id: int, db: Session = Depends(get_db)):
+def get_match_explanation(match_id: int, db: Session = Depends(get_db)) -> MatchExplanationResponse:
     match = db.get(Match, match_id)
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
@@ -289,7 +289,7 @@ def get_match_explanation(match_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{match_id}", response_model=MatchBase)
-def get_match(match_id: int, db: Session = Depends(get_db)):
+def get_match(match_id: int, db: Session = Depends(get_db)) -> MatchBase:
     match = db.get(Match, match_id)
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
@@ -297,7 +297,7 @@ def get_match(match_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{match_id}", response_model=MatchBase)
-def update_match(match_id: int, payload: MatchUpdate, db: Session = Depends(get_db)):
+def update_match(match_id: int, payload: MatchUpdate, db: Session = Depends(get_db)) -> MatchBase:
     match = db.get(Match, match_id)
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
@@ -309,7 +309,7 @@ def update_match(match_id: int, payload: MatchUpdate, db: Session = Depends(get_
 
 
 @router.delete("/{match_id}")
-def delete_match(match_id: int, db: Session = Depends(get_db)):
+def delete_match(match_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
     match = db.get(Match, match_id)
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
