@@ -13,7 +13,7 @@ class ResumeListBase(ORMModel):
     id: int
     filename: str
     file_type: str
-    file_size: int
+    file_size: int = Field(..., ge=0)
     upload_date: datetime
     processed_date: datetime | None = None
     status: Literal["pending", "processing", "completed", "failed"]

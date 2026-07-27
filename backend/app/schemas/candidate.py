@@ -97,4 +97,19 @@ class CandidateSearchBySkillsResponse(BaseModel):
     searched_skills: list[str]
 
 
-CandidateListResponse = PaginatedResponse[CandidateBase]
+class CandidateListBase(ORMModel):
+    """Minimal candidate metadata for list responses — excludes PII."""
+    id: int
+    resume_id: int
+    full_name: str | None = None
+    location: str | None = None
+    years_experience: int | None = None
+    education_level: str | None = None
+    current_position: str | None = None
+    current_company: str | None = None
+    skills: list[str] | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+CandidateListResponse = PaginatedResponse[CandidateListBase]

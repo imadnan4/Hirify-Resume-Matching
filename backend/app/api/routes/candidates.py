@@ -8,6 +8,7 @@ from app.models.candidate import Candidate
 from app.models.resume import Resume
 from app.schemas.candidate import (
     CandidateBase,
+    CandidateListBase,
     CandidateListResponse,
     CandidateResumeResponse,
     CandidateSearchBySkillsResponse,
@@ -44,7 +45,7 @@ def list_candidates(
 ) -> CandidateListResponse:
     query = db.query(Candidate)
     total = query.count()
-    items = [CandidateBase.model_validate(item) for item in query.order_by(Candidate.id.desc()).offset(skip).limit(limit)]
+    items = [CandidateListBase.model_validate(item) for item in query.order_by(Candidate.id.desc()).offset(skip).limit(limit)]
     return build_page(items=items, total=total, skip=skip, limit=limit)
 
 
