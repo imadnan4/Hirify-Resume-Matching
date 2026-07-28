@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Generator
 
 from sqlalchemy import create_engine, event, text
@@ -7,6 +8,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
 from app.models.base import Base
+
+logger = logging.getLogger(__name__)
 
 
 engine_kwargs: dict[str, object] = {"echo": settings.sql_echo}
@@ -45,7 +48,7 @@ def init_db() -> None:
                 connection.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
             except Exception:
                 # The app can still function without the extension when using JSON fallback.
-                pass
+                logger.warning("Could not create pgvector extension; falling back to JSON storage", exc_info=True)
     try:
         import alembic.config
         import alembic.command
@@ -53,7 +56,5 @@ def init_db() -> None:
         alembic_cfg = alembic.config.Config(str(_Path(__file__).resolve().parents[2] / "alembic.ini"))
         alembic.command.upgrade(alembic_cfg, "head")
     except Exception:
-        import logging
-        _logger = logging.getLogger(__name__)
-        _logger.exception("Alembic upgrade failed; falling back to create_all")
+        logger.exception("Alembic upgrade failed; falling back to metadata.create_all")
         Base.metadata.create_all(bind=engine)

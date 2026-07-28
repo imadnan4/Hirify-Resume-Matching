@@ -60,7 +60,7 @@ class BulkMatchRequest(BaseModel):
             raise ValueError(f"job_ids must contain at most {MAX_BULK_JOB_IDS} entries")
         if len(self.resume_ids) * len(self.job_ids) > MAX_BULK_PAIR_COUNT:
             raise ValueError(
-                f"resume_ids × job_ids must not exceed {MAX_BULK_PAIR_COUNT} pairs"
+                f"resume_ids x job_ids must not exceed {MAX_BULK_PAIR_COUNT} pairs"
             )
         return self
 

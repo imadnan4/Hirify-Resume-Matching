@@ -105,6 +105,9 @@ const ResumeManager: React.FC = () => {
       ...validFiles.map(file => ({ id: `file-${++fileIdCounter.current}`, file })),
     ])
     if (!hasErrors) setError(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   const uploadFiles = async () => {
@@ -113,6 +116,7 @@ const ResumeManager: React.FC = () => {
     setUploading(true)
     setError(null)
 
+    const batchIds = new Set(selectedFiles.map(({ id }) => id))
     const failureMessages: string[] = []
     const results = await Promise.allSettled(
       selectedFiles.map(async ({ id, file }) => {
@@ -139,12 +143,12 @@ const ResumeManager: React.FC = () => {
         .map((r) => (r as PromiseFulfilledResult<{ id: string; success: boolean }>).value.id)
     )
 
-    setSelectedFiles(prev => prev.filter(({ id }) => failedIds.has(id)))
+    setSelectedFiles(prev => prev.filter(({ id }) => !batchIds.has(id) || failedIds.has(id)))
     setUploadProgress(prev => {
       const next = { ...prev }
-      selectedFiles.forEach(({ id }) => {
+      for (const id of batchIds) {
         if (!failedIds.has(id)) delete next[id]
-      })
+      }
       return next
     })
     await fetchResumes(false)
@@ -296,6 +300,7 @@ const ResumeManager: React.FC = () => {
                 onClick={() => {
                   setSelectedFiles([])
                   setUploadProgress({})
+                  if (fileInputRef.current) fileInputRef.current.value = ''
                 }}
                 variant="secondary"
                 className="w-full sm:w-auto"

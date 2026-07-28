@@ -237,31 +237,38 @@ export const Search: React.FC<SearchProps> = ({
                       ))}
                     </div>
                   )}
-                  {filter.type === 'range' && (
+                  {filter.type === 'range' && (() => {
+                    const rangeVal = typeof activeFilters[filter.key] === 'object' && activeFilters[filter.key] !== null && !Array.isArray(activeFilters[filter.key])
+                      ? activeFilters[filter.key] as Record<string, any>
+                      : {}
+                    const handleRangeChange = (field: 'min' | 'max', value: string) => {
+                      const next = { ...rangeVal, [field]: value || undefined }
+                      if (!next.min && !next.max) {
+                        handleFilterChange(filter.key, undefined)
+                      } else {
+                        handleFilterChange(filter.key, next)
+                      }
+                    }
+                    return (
                     <div className="flex items-center gap-2">
                       <Input
                         type="number"
                         placeholder={filter.min != null ? String(filter.min) : 'Min'}
-                        value={typeof activeFilters[filter.key] === 'object' ? activeFilters[filter.key].min ?? '' : ''}
-                        onChange={(e) => {
-                          const prev = typeof activeFilters[filter.key] === 'object' ? activeFilters[filter.key] : {}
-                          handleFilterChange(filter.key, { ...prev, min: e.target.value || undefined })
-                        }}
+                        value={rangeVal.min ?? ''}
+                        onChange={(e) => handleRangeChange('min', e.target.value)}
                         className="h-8 w-full"
                       />
                       <span className="text-muted-foreground">–</span>
                       <Input
                         type="number"
                         placeholder={filter.max != null ? String(filter.max) : 'Max'}
-                        value={typeof activeFilters[filter.key] === 'object' ? activeFilters[filter.key].max ?? '' : ''}
-                        onChange={(e) => {
-                          const prev = typeof activeFilters[filter.key] === 'object' ? activeFilters[filter.key] : {}
-                          handleFilterChange(filter.key, { ...prev, max: e.target.value || undefined })
-                        }}
+                        value={rangeVal.max ?? ''}
+                        onChange={(e) => handleRangeChange('max', e.target.value)}
                         className="h-8 w-full"
                       />
                     </div>
-                  )}
+                    )
+                  })()}
                   {filter.type === 'date' && (
                     <Input
                       type="date"
