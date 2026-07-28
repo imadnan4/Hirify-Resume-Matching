@@ -75,7 +75,13 @@ export const Search: React.FC<SearchProps> = ({
     onFilterChange?.({});
   }, [onFilterChange]);
 
-  const activeFilterCount = Object.keys(activeFilters).length;
+  const activeFilterCount = Object.entries(activeFilters).filter(([, value]) => {
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      return (value as Record<string, any>).min != null || (value as Record<string, any>).max != null
+    }
+    if (Array.isArray(value)) return value.length > 0
+    return value !== '' && value != null
+  }).length;
 
   return (
     <div className={cn('w-full space-y-4', className)}>
@@ -150,7 +156,7 @@ export const Search: React.FC<SearchProps> = ({
                 exit={{ opacity: 0, scale: 0.8 }}
               >
                 <Badge variant="secondary" className="gap-1">
-                  {filters.find(f => f.key === key)?.label}: {String(value)}
+                  {filters.find(f => f.key === key)?.label}: {typeof value === 'object' && value !== null && !Array.isArray(value) ? `${(value as Record<string, any>).min ?? '…'} – ${(value as Record<string, any>).max ?? '…'}` : String(value)}
 					<Button
 						onClick={() => clearFilter(key)}
 						variant="ghost"
@@ -236,16 +242,22 @@ export const Search: React.FC<SearchProps> = ({
                       <Input
                         type="number"
                         placeholder={filter.min != null ? String(filter.min) : 'Min'}
-                        value={activeFilters[`${filter.key}_min`] ?? ''}
-                        onChange={(e) => handleFilterChange(`${filter.key}_min`, e.target.value)}
+                        value={typeof activeFilters[filter.key] === 'object' ? activeFilters[filter.key].min ?? '' : ''}
+                        onChange={(e) => {
+                          const prev = typeof activeFilters[filter.key] === 'object' ? activeFilters[filter.key] : {}
+                          handleFilterChange(filter.key, { ...prev, min: e.target.value || undefined })
+                        }}
                         className="h-8 w-full"
                       />
                       <span className="text-muted-foreground">–</span>
                       <Input
                         type="number"
                         placeholder={filter.max != null ? String(filter.max) : 'Max'}
-                        value={activeFilters[`${filter.key}_max`] ?? ''}
-                        onChange={(e) => handleFilterChange(`${filter.key}_max`, e.target.value)}
+                        value={typeof activeFilters[filter.key] === 'object' ? activeFilters[filter.key].max ?? '' : ''}
+                        onChange={(e) => {
+                          const prev = typeof activeFilters[filter.key] === 'object' ? activeFilters[filter.key] : {}
+                          handleFilterChange(filter.key, { ...prev, max: e.target.value || undefined })
+                        }}
                         className="h-8 w-full"
                       />
                     </div>

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import threading
 from functools import lru_cache
 
 from app.core.config import settings
@@ -49,12 +50,15 @@ class FastEmbedProvider(EmbeddingProvider):
     def __init__(self, model_name: str) -> None:
         self.model_name = model_name
         self._model = None
+        self._model_lock = threading.Lock()
 
     def _get_model(self):
         if self._model is None:
-            from fastembed import TextEmbedding
+            with self._model_lock:
+                if self._model is None:
+                    from fastembed import TextEmbedding
 
-            self._model = TextEmbedding(model_name=self.model_name)
+                    self._model = TextEmbedding(model_name=self.model_name)
         return self._model
 
     def encode(self, text: str) -> list[float]:
@@ -88,15 +92,17 @@ def get_embedding_provider() -> EmbeddingProvider:
 # Text-hash → embedding cache (process-local, bounded to MAX_CACHE_SIZE entries)
 _embedding_cache: dict[str, list[float]] = {}
 _MAX_CACHE_SIZE = 2048
+_cache_lock = threading.Lock()
 
 
 def cached_encode(provider: EmbeddingProvider, text: str) -> list[float]:
     cache_key = hashlib.sha256(text.encode("utf-8")).hexdigest()
-    if cache_key in _embedding_cache:
-        return _embedding_cache[cache_key]
+    with _cache_lock:
+        if cache_key in _embedding_cache:
+            return _embedding_cache[cache_key]
     result = provider.encode(text)
-    if len(_embedding_cache) >= _MAX_CACHE_SIZE:
-        # Evict the oldest entry (dict insertion order is preserved in Python 3.7+)
-        _embedding_cache.pop(next(iter(_embedding_cache)))
-    _embedding_cache[cache_key] = result
-    return result
+    with _cache_lock:
+        if len(_embedding_cache) >= _MAX_CACHE_SIZE:
+            _embedding_cache.pop(next(iter(_embedding_cache)))
+        _embedding_cache[cache_key] = result
+        return result

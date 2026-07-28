@@ -12,6 +12,12 @@ from app.models.base import Base
 engine_kwargs: dict[str, object] = {"echo": settings.sql_echo}
 if settings.database_url.startswith("sqlite"):
     engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    engine_kwargs.update(
+        pool_size=5,
+        max_overflow=10,
+        pool_timeout=30,
+    )
 
 engine = create_engine(settings.database_url, **engine_kwargs)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
@@ -47,4 +53,7 @@ def init_db() -> None:
         alembic_cfg = alembic.config.Config(str(_Path(__file__).resolve().parents[2] / "alembic.ini"))
         alembic.command.upgrade(alembic_cfg, "head")
     except Exception:
+        import logging
+        _logger = logging.getLogger(__name__)
+        _logger.exception("Alembic upgrade failed; falling back to create_all")
         Base.metadata.create_all(bind=engine)

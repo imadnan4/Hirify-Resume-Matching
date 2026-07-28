@@ -58,7 +58,7 @@ def _split_blocks(lines: list[str]) -> list[list[str]]:
 
 
 def _parse_work_experience(lines: list[str]) -> list[dict[str, Any]]:
-    blocks = _split_blocks(lines) or [lines] if lines else []
+    blocks = _split_blocks(lines)
     items: list[dict[str, Any]] = []
     for block in blocks[:6]:
         joined = "\n".join(block)
@@ -86,7 +86,7 @@ def _parse_work_experience(lines: list[str]) -> list[dict[str, Any]]:
 
 
 def _parse_education(lines: list[str]) -> list[dict[str, Any]]:
-    blocks = _split_blocks(lines) or [lines] if lines else []
+    blocks = _split_blocks(lines)
     items: list[dict[str, Any]] = []
     for block in blocks[:4]:
         joined = " ".join(block)

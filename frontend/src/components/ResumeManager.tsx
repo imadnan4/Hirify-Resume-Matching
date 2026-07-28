@@ -113,6 +113,7 @@ const ResumeManager: React.FC = () => {
     setUploading(true)
     setError(null)
 
+    const failureMessages: string[] = []
     const results = await Promise.allSettled(
       selectedFiles.map(async ({ id, file }) => {
         try {
@@ -120,11 +121,17 @@ const ResumeManager: React.FC = () => {
           setUploadProgress(prev => ({ ...prev, [id]: 100 }))
           return { id, success: true }
         } catch (err: any) {
-          setError(`Failed to upload ${file.name}: ${err.response?.data?.detail || err.message}`)
+          failureMessages.push(
+            `Failed to upload ${file.name}: ${err.response?.data?.detail || err.message}`
+          )
           return { id, success: false }
         }
       })
     )
+
+    if (failureMessages.length > 0) {
+      setError(failureMessages.join('. '))
+    }
 
     const failedIds = new Set(
       results

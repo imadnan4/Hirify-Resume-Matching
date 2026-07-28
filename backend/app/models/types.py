@@ -9,7 +9,7 @@ try:
     from pgvector.sqlalchemy import Vector
 
     PGVECTOR_AVAILABLE = True
-except Exception:  # pragma: no cover - optional dependency at runtime
+except ImportError:  # pragma: no cover - optional dependency at runtime
     Vector = None
     PGVECTOR_AVAILABLE = False
 
@@ -30,8 +30,6 @@ class VectorOrJSON(TypeDecorator[list[float] | None]):
     def process_bind_param(self, value, dialect):
         if value is None:
             return None
-        if dialect.name == "postgresql" and PGVECTOR_AVAILABLE:
-            return list(value)
         return list(value)
 
     def process_result_value(self, value, dialect):

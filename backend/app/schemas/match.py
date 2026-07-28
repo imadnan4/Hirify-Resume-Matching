@@ -33,6 +33,11 @@ class SingleMatchRequest(BaseModel):
     job_id: int = Field(..., gt=0)
 
 
+MAX_BULK_RESUME_IDS = 100
+MAX_BULK_JOB_IDS = 100
+MAX_BULK_PAIR_COUNT = 500
+
+
 class BulkMatchRequest(BaseModel):
     resume_ids: list[int] = Field(..., min_length=1)
     job_ids: list[int] = Field(..., min_length=1)
@@ -49,6 +54,14 @@ class BulkMatchRequest(BaseModel):
             raise ValueError("resume_ids contains duplicates")
         if len(set(self.job_ids)) != len(self.job_ids):
             raise ValueError("job_ids contains duplicates")
+        if len(self.resume_ids) > MAX_BULK_RESUME_IDS:
+            raise ValueError(f"resume_ids must contain at most {MAX_BULK_RESUME_IDS} entries")
+        if len(self.job_ids) > MAX_BULK_JOB_IDS:
+            raise ValueError(f"job_ids must contain at most {MAX_BULK_JOB_IDS} entries")
+        if len(self.resume_ids) * len(self.job_ids) > MAX_BULK_PAIR_COUNT:
+            raise ValueError(
+                f"resume_ids × job_ids must not exceed {MAX_BULK_PAIR_COUNT} pairs"
+            )
         return self
 
 

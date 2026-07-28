@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from time import perf_counter
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -11,6 +12,8 @@ from app.models.job import JobDescription
 from app.models.match import Match
 from app.models.resume import Resume
 from app.schemas.common import build_page
+
+logger = logging.getLogger(__name__)
 from app.schemas.match import (
     BulkMatchRequest,
     BulkMatchResponse,
@@ -159,16 +162,24 @@ def bulk_match(payload: BulkMatchRequest, db: Session = Depends(get_db)) -> Bulk
             resume = resumes.get(resume_id)
             if not resume or resume.status != "completed" or not resume.extracted_text:
                 continue
-            computation = _build_computation(resume=resume, job=job)
-            if computation.overall_score < payload.min_score_threshold:
+            try:
+                computation = _build_computation(resume=resume, job=job)
+                if computation.overall_score < payload.min_score_threshold:
+                    continue
+                _, summary = _persist_match(
+                    db, resume=resume, job=job, computation=computation,
+                    existing_lookup=existing_lookup,
+                )
+                if not payload.include_explanations:
+                    summary.explanation = None
+                summaries.append(summary)
+            except HTTPException:
+                raise
+            except Exception:
+                logger.exception(
+                    "Bulk match pair failed resume_id=%s job_id=%s", resume_id, job_id
+                )
                 continue
-            _, summary = _persist_match(
-                db, resume=resume, job=job, computation=computation,
-                existing_lookup=existing_lookup,
-            )
-            if not payload.include_explanations:
-                summary.explanation = None
-            summaries.append(summary)
     db.commit()
     return BulkMatchResponse(
         total_matches=len(summaries),

@@ -1,0 +1,14 @@
+# Environment files
+.env
+.env.*
+
+# Upload data
+uploads/
+data/
+
+# Tests
+tests/
+
+# VCS metadata
+.git/
+.gitignore

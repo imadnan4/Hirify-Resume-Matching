@@ -11,6 +11,7 @@ from app.services.text_processing import (
     dedupe_preserve_order,
     extract_degree_level,
     extract_required_years,
+    estimate_resume_years,
     extract_skill_candidates,
     keyword_overlap_score,
     normalize_token,
@@ -148,13 +149,7 @@ class MatchingService:
         if required_years is None:
             required_years = extract_required_years(job_text)
 
-        candidate_years = None
-        if resume_preview.processing_metadata:
-            candidate_years = resume_preview.processing_metadata.get("estimated_years_experience")
-        if candidate_years is None:
-            from app.services.text_processing import estimate_resume_years
-
-            candidate_years = estimate_resume_years(resume_text)
+        candidate_years = estimate_resume_years(resume_text)
 
         if required_years and candidate_years:
             ratio = min(candidate_years / max(required_years, 1), 1.0)

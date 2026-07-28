@@ -99,7 +99,7 @@ URL_RE = re.compile(r"https?://\S+|www\.\S+", re.IGNORECASE)
 YEARS_RE = re.compile(r"(?P<years>\d{1,2})\+?\s+(?:years|yrs)", re.IGNORECASE)
 _MONTH_RE = r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
 DATE_RANGE_RE = re.compile(
-    rf"(?P<start>(?:{_MONTH_RE}\.?\s*\d{4}|\d{4}))\s*(?:-|\u2013|to)\s*(?P<end>present|current|now|(?:{_MONTH_RE}\.?\s*\d{4}|\d{4}))",
+    rf"(?P<start>(?:{_MONTH_RE}\.?\s*\d{{4}}|\d{{4}}))\s*(?:-|\u2013|to)\s*(?P<end>present|current|now|(?:{_MONTH_RE}\.?\s*\d{{4}}|\d{{4}}))",
     re.IGNORECASE,
 )
 
@@ -124,6 +124,7 @@ def detect_sections(text: str) -> dict[str, list[str]]:
     for raw_line in text.splitlines():
         line = raw_line.strip()
         if not line:
+            sections.setdefault(current, []).append("")
             continue
         lowered = line.lower().rstrip(":")
         matched_section = next(
@@ -216,7 +217,7 @@ def estimate_resume_years(text: str, work_experience: list[dict] | None = None) 
 def cosine_similarity(a: list[float], b: list[float]) -> float:
     if not a or not b or len(a) != len(b):
         return 0.0
-    numerator = sum(x * y for x, y in zip(a, b))
+    numerator = sum(x * y for x, y in zip(a, b, strict=True))
     denom_a = sum(x * x for x in a) ** 0.5
     denom_b = sum(y * y for y in b) ** 0.5
     if denom_a == 0 or denom_b == 0:

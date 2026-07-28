@@ -47,6 +47,8 @@ def _validate_upload(file: UploadFile) -> str:
 
 
 async def _save_upload(file: UploadFile, suffix: str) -> tuple[Path, bytes]:
+    if file.size is not None and file.size > settings.max_upload_bytes:
+        raise HTTPException(status_code=400, detail="File too large. Maximum size is 10MB.")
     content = await file.read()
     if len(content) > settings.max_upload_bytes:
         raise HTTPException(status_code=400, detail="File too large. Maximum size is 10MB.")
@@ -147,8 +149,17 @@ def _process_resume(db: Session, resume: Resume) -> ResumePreviewResponse:
 
 @router.post("/upload", response_model=ResumeUploadResponse, status_code=201)
 async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_db)) -> ResumeUploadResponse:
-    suffix = _validate_upload(file)
-    path, content = await _save_upload(file, suffix)
+    path: Path | None = None
+    try:
+        suffix = _validate_upload(file)
+        path, content = await _save_upload(file, suffix)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Upload/save failed for file %s", file.filename or "unknown")
+        if path is not None and path.exists():
+            path.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail="Failed to process uploaded file") from exc
     resume = Resume(
         filename=file.filename or path.name,
         file_type=suffix.lstrip("."),
@@ -160,11 +171,11 @@ async def upload_resume(file: UploadFile = File(...), db: Session = Depends(get_
         db.add(resume)
         db.commit()
         db.refresh(resume)
-    except Exception:
+    except Exception as exc:
         db.rollback()
         if path.exists():
             path.unlink(missing_ok=True)
-        raise HTTPException(status_code=500, detail="Failed to persist resume record")
+        raise HTTPException(status_code=500, detail="Failed to persist resume record") from exc
     await asyncio.to_thread(_process_resume_by_id, resume.id)
     db.refresh(resume)
     return ResumeUploadResponse(
@@ -308,8 +319,6 @@ def delete_resume(resume_id: int, db: Session = Depends(get_db)) -> dict[str, st
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
     file_path = Path(resume.file_path)
-    db.delete(resume)
-    db.commit()
     for attempt in range(3):
         try:
             file_path.unlink()
@@ -322,4 +331,6 @@ def delete_resume(resume_id: int, db: Session = Depends(get_db)) -> dict[str, st
                 raise HTTPException(
                     status_code=500, detail="Failed to clean up uploaded file"
                 ) from None
+    db.delete(resume)
+    db.commit()
     return {"message": "Resume deleted successfully"}

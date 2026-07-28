@@ -236,7 +236,7 @@ hirify/
 │   ├── components.json
 │   ├── index.html
 │   ├── package.json
-│   ├── tailwind.config.js
+│   ├── tailwind.config.cjs
 │   ├── tsconfig.json
 │   └── vite.config.ts
 ├── .env.example

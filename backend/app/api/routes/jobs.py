@@ -128,10 +128,11 @@ def update_job(job_id: int, payload: JobDescriptionUpdate, db: Session = Depends
     job = db.get(JobDescription, job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job description not found")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    update_data = payload.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
         setattr(job, field, value)
     content_fields = {"title", "description", "requirements"}
-    if content_fields & set(payload.model_dump(exclude_unset=True).keys()):
+    if content_fields & set(update_data.keys()):
         _apply_job_processing(job)
     db.commit()
     db.refresh(job)

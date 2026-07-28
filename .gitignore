@@ -171,7 +171,6 @@ Desktop.ini
 $RECYCLE.BIN/
 
 # Docker
-.dockerignore
 
 # Uploads
 uploads/
