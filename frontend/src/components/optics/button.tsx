@@ -89,41 +89,19 @@ const Button = React.forwardRef<React.ElementRef<typeof ButtonPrimitive>, Button
         {...props}
       >
         {children}
-        {variant === "decorations" && (
-          <div className={cn("absolute -left-px -top-px z-10")}>
+        {variant === "decorations" && [
+          { position: "absolute -left-px -top-px z-10", vLine: "top-0", hLine: "left-0" },
+          { position: "absolute right-0 -top-px z-10", vLine: "top-0", hLine: "-left-[4.5px]" },
+          { position: "absolute -left-px bottom-0 z-10", vLine: "-top-[4.5px]", hLine: "left-0" },
+          { position: "absolute right-0 bottom-0 z-10", vLine: "-top-[4.5px]", hLine: "-left-[4.5px]" },
+        ].map((corner, i) => (
+          <div key={i} className={cn(corner.position)}>
             <div className="relative">
-              <div className="bg-muted-foreground w-px h-1.25 rounded-full absolute top-0" />
-              <div className="bg-muted-foreground w-1.25 h-px rounded-full absolute left-0" />
+              <div className={`bg-muted-foreground w-px h-1.25 rounded-full absolute ${corner.vLine}`} />
+              <div className={`bg-muted-foreground w-1.25 h-px rounded-full absolute ${corner.hLine}`} />
             </div>
           </div>
-        )}
-
-        {variant === "decorations" && (
-          <div className={cn("absolute right-0 -top-px z-10")}>
-            <div className="relative">
-              <div className="bg-muted-foreground w-px h-1.25 rounded-full absolute top-0" />
-              <div className="bg-muted-foreground w-1.25 h-px rounded-full absolute -left-[4.5px]" />
-            </div>
-          </div>
-        )}
-
-        {variant === "decorations" && (
-          <div className={cn("absolute -left-px bottom-0 z-10")}>
-            <div className="relative">
-              <div className="bg-muted-foreground w-px h-1.25 rounded-full absolute -top-[4.5px]" />
-              <div className="bg-muted-foreground w-1.25 h-px rounded-full absolute left-0" />
-            </div>
-          </div>
-        )}
-
-        {variant === "decorations" && (
-          <div className={cn("absolute right-0 bottom-0 z-10")}>
-            <div className="relative">
-              <div className="bg-muted-foreground w-px h-1.25 rounded-full absolute -top-[4.5px]" />
-              <div className="bg-muted-foreground w-1.25 h-px rounded-full absolute -left-[4.5px]" />
-            </div>
-          </div>
-        )}
+        ))}
       </ButtonPrimitive>
     );
   },

@@ -75,6 +75,8 @@ const Dashboard: React.FC = () => {
       if (!rawDate) return acc
 
       const day = new Date(rawDate)
+      if (isNaN(day.getTime())) return acc
+
       const dayKey = day.toISOString().slice(0, 10)
       acc[dayKey] = (acc[dayKey] || 0) + 1
       return acc
@@ -83,10 +85,14 @@ const Dashboard: React.FC = () => {
     return Object.entries(groupedData)
       .sort(([a], [b]) => a.localeCompare(b))
       .slice(-7)
-      .map(([dayKey, count]) => ({
-        date: new Date(dayKey).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        count,
-      }))
+      .map(([dayKey, count]) => {
+        const [year, month, dayNum] = dayKey.split('-')
+        const utcDate = new Date(Date.UTC(Number(year), Number(month) - 1, Number(dayNum)))
+        return {
+          date: utcDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+          count,
+        }
+      })
   }
 
   const processScoreDistribution = () => {
@@ -204,7 +210,7 @@ const Dashboard: React.FC = () => {
         <CardHeader>
           <CardTitle>Analytics</CardTitle>
           <CardDescription>
-            EvilCharts-inspired motion styling with readable tooltips and compact axes.
+            Trends across resumes, jobs, and match scores with distribution breakdowns.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 md:space-y-6">

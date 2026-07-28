@@ -210,6 +210,54 @@ export const Search: React.FC<SearchProps> = ({
                       </SelectContent>
                     </Select>
                   )}
+                  {filter.type === 'multiselect' && (
+                    <div className="max-h-32 space-y-1 overflow-y-auto">
+                      {filter.options?.map((option) => (
+                        <label key={option.value} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={Array.isArray(activeFilters[filter.key]) && activeFilters[filter.key].includes(option.value)}
+                            onChange={(e) => {
+                              const prev = Array.isArray(activeFilters[filter.key]) ? activeFilters[filter.key] : []
+                              const next = e.target.checked
+                                ? [...prev, option.value]
+                                : prev.filter((v: string) => v !== option.value)
+                              handleFilterChange(filter.key, next)
+                            }}
+                            className="rounded border-border"
+                          />
+                          {option.label}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {filter.type === 'range' && (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        type="number"
+                        placeholder={filter.min != null ? String(filter.min) : 'Min'}
+                        value={activeFilters[`${filter.key}_min`] ?? ''}
+                        onChange={(e) => handleFilterChange(`${filter.key}_min`, e.target.value)}
+                        className="h-8 w-full"
+                      />
+                      <span className="text-muted-foreground">–</span>
+                      <Input
+                        type="number"
+                        placeholder={filter.max != null ? String(filter.max) : 'Max'}
+                        value={activeFilters[`${filter.key}_max`] ?? ''}
+                        onChange={(e) => handleFilterChange(`${filter.key}_max`, e.target.value)}
+                        className="h-8 w-full"
+                      />
+                    </div>
+                  )}
+                  {filter.type === 'date' && (
+                    <Input
+                      type="date"
+                      value={activeFilters[filter.key] || ''}
+                      onChange={(e) => handleFilterChange(filter.key, e.target.value)}
+                      className="h-8 w-full"
+                    />
+                  )}
                 </motion.div>
               ))}
             </div>

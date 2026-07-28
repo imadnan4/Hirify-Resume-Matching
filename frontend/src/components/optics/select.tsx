@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Select as SelectPrimitive } from "@base-ui/react/select";
+import { type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon, CheckIcon, ChevronUpIcon } from "lucide-react";
@@ -8,11 +9,7 @@ import { buttonVariants } from "@/components/optics/button";
 const Select = SelectPrimitive.Root as React.FC<React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>> & { displayName?: string };
 Select.displayName = "Select";
 
-type ButtonVariant = Parameters<typeof buttonVariants>[0] extends infer P
-	? P extends { variant?: infer V }
-		? V
-		: never
-	: never;
+type ButtonVariant = VariantProps<typeof buttonVariants>["variant"];
 
 function SelectGroup({
 	className = "",
@@ -222,7 +219,7 @@ function SelectScrollDownButton({
 
 
 Select.displayName = "Select";
-SelectContent.displayName = "SelectContent" as any;
+SelectContent.displayName = "SelectContent";
 SelectGroup.displayName = "SelectGroup";
 SelectItem.displayName = "SelectItem";
 SelectLabel.displayName = "SelectLabel";

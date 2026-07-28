@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge'
 import { Alert, AlertDescription } from './ui/alert'
 import { useToast } from './ui/toast'
+import { useDeleteFlow } from '../hooks/use-delete-flow'
 import ConfirmDialog from './ui/confirm-dialog'
 
 const EMPLOYMENT_TYPE_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost'> = {
@@ -23,11 +24,22 @@ const EMPLOYMENT_TYPE_VARIANTS: Record<string, 'default' | 'secondary' | 'destru
 const JobManager: React.FC = () => {
   const [jobs, setJobs] = useState<JobDescription[]>([])
   const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [jobPendingDelete, setJobPendingDelete] = useState<JobDescription | null>(null)
-  const [deletingJob, setDeletingJob] = useState(false)
   const { addToast } = useToast()
+  const {
+    pendingDelete: jobPendingDelete,
+    deleting: deletingJob,
+    requestDelete: requestDeleteJob,
+    cancelDelete: cancelDeleteJob,
+    handleDelete: handleDeleteJob,
+  } = useDeleteFlow<JobDescription>({
+    deleteFn: (id) => apiService.deleteJob(id),
+    itemLabel: 'Job',
+    onDeleted: (id) => setJobs((prev) => prev.filter((job) => job.id !== id)),
+    getDescription: (item) => `${item.title} at ${item.company}`,
+  })
   const [formData, setFormData] = useState({
     title: '',
     company: '',
@@ -59,11 +71,23 @@ const JobManager: React.FC = () => {
 
   const handleAddJob = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (submitting) return
+
+    const payload: Record<string, any> = {
+      title: formData.title,
+      company: formData.company,
+      description: formData.description,
+      requirements: formData.requirements,
+      source: 'manual',
+    }
+    if (formData.location) payload.location = formData.location
+    if (formData.salary_range) payload.salary_range = formData.salary_range
+    if (formData.employment_type) payload.employment_type = formData.employment_type
+    if (formData.experience_level) payload.experience_level = formData.experience_level
+
     try {
-      await apiService.createJob({
-        ...formData,
-        source: 'manual',
-      })
+      setSubmitting(true)
+      await apiService.createJob(payload)
       setShowAddForm(false)
       setFormData({
         title: '',
@@ -75,45 +99,20 @@ const JobManager: React.FC = () => {
         employment_type: '',
         experience_level: '',
       })
+      addToast({
+        type: 'success',
+        title: 'Job created',
+        description: `${formData.title} has been added.`,
+      })
       await fetchJobs(false)
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to add job')
-    }
-  }
-
-  const requestDeleteJob = (job: JobDescription, e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    setJobPendingDelete(job)
-  }
-
-  const handleDeleteJob = async () => {
-    if (!jobPendingDelete) return
-
-    try {
-      setDeletingJob(true)
-      const deletedJobId = jobPendingDelete.id
-      const deletedJobTitle = jobPendingDelete.title
-
-      await apiService.deleteJob(deletedJobId)
-      setJobs((prev) => prev.filter((job) => job.id !== deletedJobId))
-      addToast({
-        type: 'success',
-        title: 'Job deleted',
-        description: `${deletedJobTitle} has been removed.`,
-      })
-      setJobPendingDelete(null)
-    } catch (err: any) {
-      console.error('Delete error:', err)
-      setError(err.response?.data?.detail || 'Failed to delete job')
-      addToast({
-        type: 'error',
-        title: 'Delete failed',
-        description: err.response?.data?.detail || 'Failed to delete job',
-      })
     } finally {
-      setDeletingJob(false)
+      setSubmitting(false)
     }
   }
+
+
 
   return (
     <motion.div
@@ -255,8 +254,8 @@ const JobManager: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
-              <Button type="submit" variant="info" className="w-full sm:w-auto">
-                Add Job
+              <Button type="submit" variant="info" disabled={submitting} className="w-full sm:w-auto">
+                {submitting ? 'Adding...' : 'Add Job'}
               </Button>
               <Button
                 type="button"
@@ -337,7 +336,7 @@ const JobManager: React.FC = () => {
       <ConfirmDialog
         open={Boolean(jobPendingDelete)}
         onOpenChange={(open) => {
-          if (!open) setJobPendingDelete(null)
+          if (!open) cancelDeleteJob()
         }}
         title="Delete this job?"
         description={

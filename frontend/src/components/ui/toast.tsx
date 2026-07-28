@@ -178,40 +178,26 @@ const ToastItem: React.FC<{ toast: Toast }> = ({ toast }) => {
   );
 };
 
-// Utility functions for easier toast usage
-export const toast = {
-  success: (message: string, options?: Partial<Toast>) => {
-    const { addToast } = useToast();
-    addToast({
-      type: 'success',
-      description: message,
-      ...options,
-    });
-  },
-  error: (message: string, options?: Partial<Toast>) => {
-    const { addToast } = useToast();
-    addToast({
-      type: 'error',
-      description: message,
-      ...options,
-    });
-  },
-  warning: (message: string, options?: Partial<Toast>) => {
-    const { addToast } = useToast();
-    addToast({
-      type: 'warning',
-      description: message,
-      ...options,
-    });
-  },
-  info: (message: string, options?: Partial<Toast>) => {
-    const { addToast } = useToast();
-    addToast({
-      type: 'info',
-      description: message,
-      ...options,
-    });
-  },
-};
+/**
+ * Hook returning static-style toast helpers bound to the current ToastProvider.
+ * Usage: const toast = useToastActions(); toast.success('Saved!');
+ */
+export function useToastActions() {
+  const { addToast } = useToast();
+  return {
+    success: (message: string, options?: Partial<Toast>) => {
+      addToast({ type: 'success', description: message, ...options });
+    },
+    error: (message: string, options?: Partial<Toast>) => {
+      addToast({ type: 'error', description: message, ...options });
+    },
+    warning: (message: string, options?: Partial<Toast>) => {
+      addToast({ type: 'warning', description: message, ...options });
+    },
+    info: (message: string, options?: Partial<Toast>) => {
+      addToast({ type: 'info', description: message, ...options });
+    },
+  };
+}
 
 export default ToastProvider;

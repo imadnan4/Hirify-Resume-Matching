@@ -32,6 +32,8 @@ export const Loading: React.FC<LoadingProps> = ({
   const renderSpinner = () => (
     <motion.div
       className={cn('flex items-center gap-2', className)}
+      role="status"
+      aria-live="polite"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
@@ -44,6 +46,8 @@ export const Loading: React.FC<LoadingProps> = ({
   const renderPulse = () => (
     <motion.div
       className={cn('flex items-center gap-2', className)}
+      role="status"
+      aria-live="polite"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
@@ -60,6 +64,8 @@ export const Loading: React.FC<LoadingProps> = ({
   const renderDots = () => (
     <motion.div
       className={cn('flex items-center gap-2', className)}
+      role="status"
+      aria-live="polite"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
@@ -86,6 +92,8 @@ export const Loading: React.FC<LoadingProps> = ({
   const renderProgress = () => (
     <motion.div
       className={cn('flex items-center gap-2', className)}
+      role="status"
+      aria-live="polite"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
@@ -105,6 +113,11 @@ export const Loading: React.FC<LoadingProps> = ({
   return variants[variant]();
 };
 
+/**
+ * LoadingScreen must be rendered inside Framer Motion's AnimatePresence
+ * for the root and nested exit animations to run. The caller controls
+ * mount/unmount; do not wrap with a local AnimatePresence.
+ */
 export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   message = 'Processing your resume...',
   submessage = 'This may take a few moments',
@@ -123,6 +136,8 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
         'fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm',
         className
       )}
+      role="status"
+      aria-live="polite"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

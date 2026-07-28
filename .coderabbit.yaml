@@ -1,0 +1,54 @@
+reviews:
+  high_level_summary: true
+  review_status: true
+  poem: false
+  auto_review:
+    base_branches:
+      - empty-base
+      - main
+  path_instructions:
+    - path: "backend/app/api/routes/**/*.py"
+      instructions: |
+        Review all API endpoint files thoroughly:
+        - Flag missing Python type hints as HIGH.
+        - Flag unhandled exceptions in async endpoints as MEDIUM.
+        - Check FastAPI route structure, proper HTTP status codes, and response models.
+        - Verify input validation with Pydantic models.
+        - Flag missing error handling and edge cases.
+        - Check for proper dependency injection patterns.
+    - path: "backend/app/models/**/*.py"
+      instructions: |
+        Review SQLAlchemy models:
+        - Flag missing indexes on frequently queried columns as MEDIUM.
+        - Check relationship definitions for correctness.
+        - Verify proper cascade behaviors.
+        - Flag missing nullable/default constraints.
+    - path: "backend/app/schemas/**/*.py"
+      instructions: |
+        Review Pydantic schemas:
+        - Flag missing field validators for business logic constraints.
+        - Check for proper use of Optional vs required fields.
+        - Verify consistent naming conventions.
+    - path: "backend/app/services/**/*.py"
+      instructions: |
+        Review service layer:
+        - Flag missing transaction handling as HIGH.
+        - Check for N+1 query patterns.
+        - Verify proper separation of concerns.
+        - Flag tight coupling between services.
+    - path: "backend/app/core/**/*.py"
+      instructions: |
+        Review core configuration and database setup:
+        - Flag hardcoded configuration values as HIGH.
+        - Check database connection pooling settings.
+        - Verify proper environment variable handling.
+    - path: "backend/tests/**/*.py"
+      instructions: |
+        Review test files:
+        - Flag tests that don't have meaningful assertions.
+        - Check for proper mocking and test isolation.
+        - Verify edge case coverage.
+    - path: "backend/requirements.txt"
+      instructions: "Check for outdated dependencies, missing pins, and potential security vulnerabilities."
+    - path: "**"
+      instructions: "Flag security issues like hardcoded secrets, SQL injection risks, and XSS vulnerabilities as HIGH."

@@ -180,7 +180,7 @@ function DialogPopup({
 	const { modal } = useDialog();
 
 	const cssAnimationConfig = React.useMemo(() => {
-		if (reduceMotion) return "none";
+		if (reduceMotion) return cssAnimationPresets.none;
 
 		if (animationPreset) {
 			return cssAnimationPresets[animationPreset];
@@ -190,7 +190,7 @@ function DialogPopup({
 	}, [animationPreset, reduceMotion]);
 
 	const cssTransitionConfig = React.useMemo(() => {
-		if (reduceMotion) return "none";
+		if (reduceMotion) return "transition-none duration-[0s]";
 
 		if (transitionPreset) {
 			return cssTransitionPresets[transitionPreset];

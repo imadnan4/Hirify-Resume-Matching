@@ -78,6 +78,23 @@ const getSeriesKeys = (data: any[]) => {
   );
 };
 
+function useAnimatedChartData(data: any[]) {
+  const [animatedData, setAnimatedData] = useState<any[]>([]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAnimatedData(data);
+    }, 220);
+
+    return () => clearTimeout(timer);
+  }, [data]);
+
+  const xAxisKey = useMemo(() => getXAxisKey(animatedData), [animatedData]);
+  const seriesKeys = useMemo(() => getSeriesKeys(animatedData), [animatedData]);
+
+  return { animatedData, xAxisKey, seriesKeys };
+}
+
 const AnimatedPieTooltip: React.FC<any> = ({ active, payload }) => {
   if (!active || !payload || !payload.length) {
     return null;
@@ -147,18 +164,7 @@ export const AnimatedBarChart: React.FC<AnimatedChartProps> = ({
   colors = EVIL_CHART_PALETTE,
   animationDuration = 1100,
 }) => {
-  const [animatedData, setAnimatedData] = useState<any[]>([]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setAnimatedData(data);
-    }, 220);
-
-    return () => clearTimeout(timer);
-  }, [data]);
-
-  const xAxisKey = useMemo(() => getXAxisKey(animatedData), [animatedData]);
-  const seriesKeys = useMemo(() => getSeriesKeys(animatedData), [animatedData]);
+  const { animatedData, xAxisKey, seriesKeys } = useAnimatedChartData(data);
 
   return (
     <Card className={cn(CHART_CARD_CLASS, className)}>
@@ -417,18 +423,7 @@ export const AnimatedLineChart: React.FC<AnimatedChartProps> = ({
   colors = EVIL_CHART_PALETTE,
   animationDuration = 1100,
 }) => {
-  const [animatedData, setAnimatedData] = useState<any[]>([]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setAnimatedData(data);
-    }, 220);
-
-    return () => clearTimeout(timer);
-  }, [data]);
-
-  const xAxisKey = useMemo(() => getXAxisKey(animatedData), [animatedData]);
-  const seriesKeys = useMemo(() => getSeriesKeys(animatedData), [animatedData]);
+  const { animatedData, xAxisKey, seriesKeys } = useAnimatedChartData(data);
 
   return (
     <Card className={cn(CHART_CARD_CLASS, className)}>
@@ -486,18 +481,7 @@ export const AnimatedAreaChart: React.FC<AnimatedChartProps> = ({
   colors = EVIL_CHART_PALETTE,
   animationDuration = 1100,
 }) => {
-  const [animatedData, setAnimatedData] = useState<any[]>([]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setAnimatedData(data);
-    }, 220);
-
-    return () => clearTimeout(timer);
-  }, [data]);
-
-  const xAxisKey = useMemo(() => getXAxisKey(animatedData), [animatedData]);
-  const seriesKeys = useMemo(() => getSeriesKeys(animatedData), [animatedData]);
+  const { animatedData, xAxisKey, seriesKeys } = useAnimatedChartData(data);
 
   return (
     <Card className={cn(CHART_CARD_CLASS, className)}>

@@ -1,12 +1,9 @@
 import * as React from "react";
+import { type VariantProps } from "class-variance-authority";
 import { buttonVariants } from "@/components/optics/button";
 import { cn } from "@/lib/utils";
 
-type TextareaVariant = Parameters<typeof buttonVariants>[0] extends infer P
-	? P extends { variant?: infer V }
-		? V
-		: never
-	: never;
+type TextareaVariant = VariantProps<typeof buttonVariants>["variant"];
 
 export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement> & {
 	variant?: TextareaVariant;

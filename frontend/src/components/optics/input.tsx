@@ -1,13 +1,10 @@
 import * as React from "react";
 import { Input as InputPrimitive } from "@base-ui/react/input";
+import { type VariantProps } from "class-variance-authority";
 import { buttonVariants } from "@/components/optics/button";
 import { cn } from "@/lib/utils";
 
-type InputVariant = Parameters<typeof buttonVariants>[0] extends infer P
-  ? P extends { variant?: infer V }
-    ? V
-    : never
-  : never;
+type InputVariant = VariantProps<typeof buttonVariants>["variant"];
 
 export type InputProps = React.ComponentPropsWithoutRef<typeof InputPrimitive> & {
   variant?: InputVariant;

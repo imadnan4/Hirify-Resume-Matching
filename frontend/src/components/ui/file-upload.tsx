@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, File, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -31,6 +31,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [files, setFiles] = useState<FileStatus[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const validateFile = (file: File): string | null => {
     const maxSizeBytes = maxSize * 1024 * 1024;
@@ -73,10 +74,10 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       }
     });
 
-    setFiles(prev => multiple ? [...prev, ...newFileStatuses] : newFileStatuses);
+    setFiles(prev => multiple ? [...prev, ...newFileStatuses] : newFileStatuses.slice(0, 1));
     
     if (validFiles.length > 0) {
-      onFilesSelect(validFiles);
+      onFilesSelect(multiple ? validFiles : validFiles.slice(0, 1));
     }
   }, [onFilesSelect, multiple, disabled, accept, maxSize]);
 
@@ -134,6 +135,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         transition={{ duration: 0.2 }}
       >
         <input
+          ref={fileInputRef}
           type="file"
           accept={accept}
           multiple={multiple}
@@ -167,7 +169,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             </p>
           </div>
           
-          <Button variant="outline" disabled={disabled}>
+          <Button variant="outline" disabled={disabled} onClick={() => fileInputRef.current?.click()} type="button">
             Choose Files
           </Button>
         </motion.div>
@@ -189,7 +191,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                 exit={{ opacity: 0, x: 20 }}
                 className="flex items-center gap-3 p-3 rounded-lg border bg-card"
               >
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   <File className="h-5 w-5 text-muted-foreground" />
                 </div>
                 

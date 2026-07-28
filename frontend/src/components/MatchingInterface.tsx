@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Alert, AlertDescription } from './ui/alert'
 import { AnimatedBarChart, AnimatedPieChart } from './ui/animated-chart'
 import { useToast } from './ui/toast'
+import { useDeleteFlow } from '../hooks/use-delete-flow'
 import ConfirmDialog from './ui/confirm-dialog'
 
 interface MatchingStats {
@@ -37,9 +38,19 @@ const MatchingInterface: React.FC = () => {
   const [matchingType, setMatchingType] = useState<'single' | 'bulk'>('single')
   const [selectedSingleResume, setSelectedSingleResume] = useState<number | null>(null)
   const [selectedSingleJob, setSelectedSingleJob] = useState<number | null>(null)
-  const [matchPendingDelete, setMatchPendingDelete] = useState<Match | null>(null)
-  const [deletingMatch, setDeletingMatch] = useState(false)
   const { addToast } = useToast()
+  const {
+    pendingDelete: matchPendingDelete,
+    deleting: deletingMatch,
+    requestDelete: requestDeleteMatch,
+    cancelDelete: cancelDeleteMatch,
+    handleDelete: handleDeleteMatch,
+  } = useDeleteFlow<Match>({
+    deleteFn: (id) => apiService.deleteMatch(id),
+    itemLabel: 'Match',
+    onDeleted: (id) => setMatches((prev) => prev.filter((m) => m.id !== id)),
+    getDescription: (item) => `Match #${item.id}`,
+  })
 
   useEffect(() => {
     fetchData()
@@ -95,7 +106,7 @@ const MatchingInterface: React.FC = () => {
 
   const handleStartMatching = async () => {
     if (matchingType === 'single') {
-      if (!selectedSingleResume || !selectedSingleJob) {
+      if (selectedSingleResume === null || selectedSingleJob === null) {
         setError('Please select both a resume and a job for single matching')
         return
       }
@@ -164,38 +175,7 @@ const MatchingInterface: React.FC = () => {
     }
   }
 
-  const requestDeleteMatch = (match: Match, e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    setMatchPendingDelete(match)
-  }
 
-  const handleDeleteMatch = async () => {
-    if (!matchPendingDelete) return
-
-    try {
-      setDeletingMatch(true)
-      const deletedMatchId = matchPendingDelete.id
-
-      await apiService.deleteMatch(deletedMatchId)
-      setMatches((prev) => prev.filter((match) => match.id !== deletedMatchId))
-      addToast({
-        type: 'success',
-        title: 'Match deleted',
-        description: 'The matching record has been removed.',
-      })
-      setMatchPendingDelete(null)
-    } catch (err: any) {
-      console.error('Delete error:', err)
-      setError(err.response?.data?.detail || 'Failed to delete match')
-      addToast({
-        type: 'error',
-        title: 'Delete failed',
-        description: err.response?.data?.detail || 'Failed to delete match',
-      })
-    } finally {
-      setDeletingMatch(false)
-    }
-  }
 
   const getScoreColorClass = (score: number) => {
     if (score >= 0.8) return 'text-green-600 bg-green-100'
@@ -232,7 +212,7 @@ const MatchingInterface: React.FC = () => {
         targetScore: 100,
         color: '#ff7c7c',
       },
-    ].filter((item) => item.userScore >= 0)
+    ]
   }
 
   const getMatchPieData = (match: Match) => {
@@ -695,17 +675,13 @@ const MatchingInterface: React.FC = () => {
                       <div>
                         <p className="text-blue-800">
                           <strong>Strengths:</strong>
-                          {match.skills_score && match.skills_score >= 0.7
-                            ? ' Strong skills match'
-                            : ''}
-                          {match.experience_score && match.experience_score >= 0.7
-                            ? ', Good experience level'
-                            : ''}
-                          {match.education_score && match.education_score >= 0.7
-                            ? ', Education requirement met'
-                            : ''}
+                          {[
+                            match.skills_score && match.skills_score >= 0.7 && 'Strong skills match',
+                            match.experience_score && match.experience_score >= 0.7 && 'Good experience level',
+                            match.education_score && match.education_score >= 0.7 && 'Education requirement met',
+                          ].filter(Boolean).join(', ') || ' None identified'}
                         </p>
-                        {match.skill_overlap_count !== undefined && (
+                        {match.skill_overlap_count !== undefined && match.total_required_skills !== undefined && (
                           <p className="mt-1 text-blue-800">
                             <strong>Skills Overlap:</strong>{' '}
                             {match.skill_overlap_count} out of{' '}
@@ -716,15 +692,11 @@ const MatchingInterface: React.FC = () => {
                       <div>
                         <p className="text-blue-800">
                           <strong>Areas for Improvement:</strong>
-                          {match.skills_score && match.skills_score < 0.5
-                            ? ' Skills development needed'
-                            : ''}
-                          {match.experience_score && match.experience_score < 0.5
-                            ? ', More experience required'
-                            : ''}
-                          {match.education_score && match.education_score < 0.5
-                            ? ', Education gap identified'
-                            : ''}
+                          {[
+                            match.skills_score && match.skills_score < 0.5 && 'Skills development needed',
+                            match.experience_score && match.experience_score < 0.5 && 'More experience required',
+                            match.education_score && match.education_score < 0.5 && 'Education gap identified',
+                          ].filter(Boolean).join(', ') || ' None identified'}
                         </p>
                         {match.confidence_level && (
                           <p className="mt-1 text-blue-800">
@@ -746,7 +718,7 @@ const MatchingInterface: React.FC = () => {
       <ConfirmDialog
         open={Boolean(matchPendingDelete)}
         onOpenChange={(open) => {
-          if (!open) setMatchPendingDelete(null)
+          if (!open) cancelDeleteMatch()
         }}
         title="Delete this match record?"
         description="This will permanently remove the matching result and analysis details."

@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from './ui/dialog'
-import { useToast } from './ui/toast'
+import { useDeleteFlow } from '../hooks/use-delete-flow'
 import ConfirmDialog from './ui/confirm-dialog'
 
 const STATUS_VARIANT_MAP: Record<string, 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost'> = {
@@ -31,13 +31,23 @@ const ResumeManager: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [dragActive, setDragActive] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
+  const [selectedFiles, setSelectedFiles] = useState<{ id: string; file: File }[]>([])
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({})
+  const fileIdCounter = useRef(0)
   const [previewData, setPreviewData] = useState<any>(null)
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
-  const [resumePendingDelete, setResumePendingDelete] = useState<Resume | null>(null)
-  const [deletingResume, setDeletingResume] = useState(false)
-  const { addToast } = useToast()
+  const {
+    pendingDelete: resumePendingDelete,
+    deleting: deletingResume,
+    requestDelete: requestDeleteResume,
+    cancelDelete: cancelDeleteResume,
+    handleDelete: handleDeleteResume,
+  } = useDeleteFlow<Resume>({
+    deleteFn: (id) => apiService.deleteResume(id),
+    itemLabel: 'Resume',
+    onDeleted: (id) => setResumes((prev) => prev.filter((r) => r.id !== id)),
+    getDescription: (item) => item.filename,
+  })
 
   useEffect(() => {
     fetchResumes()
@@ -75,7 +85,7 @@ const ResumeManager: React.FC = () => {
       ]
       const maxSize = 10 * 1024 * 1024
 
-      if (!hasValidExtension && !validTypes.includes(file.type)) {
+      if (!hasValidExtension || !validTypes.includes(file.type)) {
         setError(`Invalid file type: ${file.name}. Only PDF, DOC, and DOCX files are allowed.`)
         hasErrors = true
         return
@@ -90,7 +100,10 @@ const ResumeManager: React.FC = () => {
       validFiles.push(file)
     })
 
-    setSelectedFiles(prev => [...prev, ...validFiles])
+    setSelectedFiles(prev => [
+      ...prev,
+      ...validFiles.map(file => ({ id: `file-${++fileIdCounter.current}`, file })),
+    ])
     if (!hasErrors) setError(null)
   }
 
@@ -100,27 +113,35 @@ const ResumeManager: React.FC = () => {
     setUploading(true)
     setError(null)
 
-    try {
-      const uploadPromises = selectedFiles.map(async (file) => {
+    const results = await Promise.allSettled(
+      selectedFiles.map(async ({ id, file }) => {
         try {
           const result = await apiService.uploadResume(file)
-          setUploadProgress(prev => ({ ...prev, [file.name]: 100 }))
-          return result
+          setUploadProgress(prev => ({ ...prev, [id]: 100 }))
+          return { id, success: true }
         } catch (err: any) {
           setError(`Failed to upload ${file.name}: ${err.response?.data?.detail || err.message}`)
-          throw err
+          return { id, success: false }
         }
       })
+    )
 
-      await Promise.all(uploadPromises)
-      setSelectedFiles([])
-      setUploadProgress({})
-      await fetchResumes(false)
-    } catch (err) {
-      console.error('Upload error:', err)
-    } finally {
-      setUploading(false)
-    }
+    const failedIds = new Set(
+      results
+        .filter((r) => r.status === 'fulfilled' && !r.value.success)
+        .map((r) => (r as PromiseFulfilledResult<{ id: string; success: boolean }>).value.id)
+    )
+
+    setSelectedFiles(prev => prev.filter(({ id }) => failedIds.has(id)))
+    setUploadProgress(prev => {
+      const next = { ...prev }
+      selectedFiles.forEach(({ id }) => {
+        if (!failedIds.has(id)) delete next[id]
+      })
+      return next
+    })
+    await fetchResumes(false)
+    setUploading(false)
   }
 
   const handleDrag = (e: React.DragEvent) => {
@@ -142,39 +163,7 @@ const ResumeManager: React.FC = () => {
     }
   }
 
-  const requestDeleteResume = (resume: Resume, e?: React.MouseEvent) => {
-    e?.stopPropagation()
-    setResumePendingDelete(resume)
-  }
 
-  const handleDeleteResume = async () => {
-    if (!resumePendingDelete) return
-
-    try {
-      setDeletingResume(true)
-      const deletedResumeId = resumePendingDelete.id
-      const deletedResumeName = resumePendingDelete.filename
-
-      await apiService.deleteResume(deletedResumeId)
-      setResumes((prev) => prev.filter((r) => r.id !== deletedResumeId))
-      addToast({
-        type: 'success',
-        title: 'Resume deleted',
-        description: `${deletedResumeName} has been removed.`,
-      })
-      setResumePendingDelete(null)
-    } catch (err: any) {
-      console.error('Delete error:', err)
-      setError(err.response?.data?.detail || 'Failed to delete resume')
-      addToast({
-        type: 'error',
-        title: 'Delete failed',
-        description: err.response?.data?.detail || 'Failed to delete resume',
-      })
-    } finally {
-      setDeletingResume(false)
-    }
-  }
 
   const handleReprocessResume = async (resumeId: number) => {
     try {
@@ -273,9 +262,9 @@ const ResumeManager: React.FC = () => {
           <div className="mt-4">
             <h3 className="mb-2 text-lg font-medium">Selected Files:</h3>
             <div className="space-y-2">
-              {selectedFiles.map((file, index) => (
+              {selectedFiles.map(({ id, file }) => (
                 <div
-                  key={index}
+                  key={id}
                   className="flex flex-col gap-2 rounded-lg bg-muted/50 p-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="flex flex-wrap items-center gap-2">
@@ -284,9 +273,9 @@ const ResumeManager: React.FC = () => {
                       ({formatFileSize(file.size)})
                     </span>
                   </div>
-                  {uploadProgress[file.name] != null && (
+                  {uploadProgress[id] != null && (
                     <div className="w-full sm:w-32">
-                      <Progress value={uploadProgress[file.name]} />
+                      <Progress value={uploadProgress[id]} />
                     </div>
                   )}
                 </div>
@@ -524,7 +513,7 @@ const ResumeManager: React.FC = () => {
       <ConfirmDialog
         open={Boolean(resumePendingDelete)}
         onOpenChange={(open) => {
-          if (!open) setResumePendingDelete(null)
+          if (!open) cancelDeleteResume()
         }}
         title="Delete this resume?"
         description={

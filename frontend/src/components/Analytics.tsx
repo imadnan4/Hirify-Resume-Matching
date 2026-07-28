@@ -105,44 +105,9 @@ const Analytics: React.FC = () => {
         .slice(0, 10)
         .map(([company, jobCount]) => ({ company, jobCount }))
 
-      const monthlyTrends = [
-        {
-          month: 'Jan',
-          resumes: Math.floor(resumes.length * 0.1),
-          jobs: Math.floor(jobs.length * 0.1),
-          matches: Math.floor(matches.length * 0.1),
-        },
-        {
-          month: 'Feb',
-          resumes: Math.floor(resumes.length * 0.15),
-          jobs: Math.floor(jobs.length * 0.15),
-          matches: Math.floor(matches.length * 0.15),
-        },
-        {
-          month: 'Mar',
-          resumes: Math.floor(resumes.length * 0.2),
-          jobs: Math.floor(jobs.length * 0.2),
-          matches: Math.floor(matches.length * 0.2),
-        },
-        {
-          month: 'Apr',
-          resumes: Math.floor(resumes.length * 0.25),
-          jobs: Math.floor(jobs.length * 0.25),
-          matches: Math.floor(matches.length * 0.25),
-        },
-        {
-          month: 'May',
-          resumes: Math.floor(resumes.length * 0.3),
-          jobs: Math.floor(jobs.length * 0.3),
-          matches: Math.floor(matches.length * 0.3),
-        },
-        {
-          month: 'Jun',
-          resumes: resumes.length,
-          jobs: jobs.length,
-          matches: matches.length,
-        },
-      ]
+      // TODO: Replace with real monthly aggregation from created_at/upload_date
+      // once date-based grouping is available on the backend.
+      const monthlyTrends: { month: string; resumes: number; jobs: number; matches: number }[] = []
 
       setData({
         matchScoreDistribution,
@@ -348,6 +313,12 @@ const Analytics: React.FC = () => {
                 <CardTitle>Monthly Trends</CardTitle>
               </CardHeader>
               <CardContent>
+                {data.monthlyTrends.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground">
+                    <p>Trend data not available yet.</p>
+                    <p className="text-sm">Monthly aggregation will appear once enough historical data is collected.</p>
+                  </div>
+                ) : (
                 <div className="space-y-4">
                   {data.monthlyTrends.map((trend, index) => (
                     <div
@@ -378,6 +349,7 @@ const Analytics: React.FC = () => {
                     </div>
                   ))}
                 </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -424,7 +396,7 @@ const Analytics: React.FC = () => {
                   </h4>
                   <p className="mt-1 text-purple-600">
                     {data.matchScoreDistribution.length > 0
-                      ? `${data.matchScoreDistribution.filter((s) => s.score.includes('90-100')).reduce((sum, s) => sum + s.count, 0)} excellent matches`
+                      ? `${data.matchScoreDistribution.filter((s) => s.score === '90-100%').reduce((sum, s) => sum + s.count, 0)} excellent matches`
                       : 'N/A'}
                   </p>
                   <p className="mt-1 text-sm text-purple-500">
