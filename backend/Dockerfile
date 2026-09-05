@@ -9,7 +9,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 COPY backend/ ./backend/
 COPY config/ ./config/
 COPY prompts/ ./prompts/
-RUN useradd -m -u 10001 appuser && mkdir -p /data/uploads && chown -R appuser:appuser /srv /data/uploads
+RUN useradd -m -u 10001 appuser && mkdir -p /data/uploads && chown -R appuser:appuser /data/uploads
 ENV PYTHONPATH=/srv/backend UPLOAD_ROOT=/data/uploads
 EXPOSE 8000
 USER appuser

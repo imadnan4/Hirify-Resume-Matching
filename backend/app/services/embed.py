@@ -17,9 +17,10 @@ def embed(texts: list[str]) -> list[list[float]]:
         try:
             return _minilm(texts)
         except ImportError:
-            pass
-        except Exception as e:
-            print(f"embed: MiniLM failed ({e}); falling back to hash vectors", file=sys.stderr)
+            pass  # package absent: hash fallback is the documented CI/dev path
+        except OSError as e:
+            # model weights/cache unavailable: degraded but operable
+            print(f"embed: MiniLM unavailable ({e}); falling back to hash vectors", file=sys.stderr)
     return [_hash_vec(t) for t in texts]
 
 
