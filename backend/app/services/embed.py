@@ -4,19 +4,22 @@ Keeps RAG + tests runnable without torch. Set EMBEDDING_BACKEND=hash in CI.
 """
 import hashlib
 import math
-import os
+import sys
+
+from app.core.config import settings
 
 DIM = 384
 _model = None
 
 
 def embed(texts: list[str]) -> list[list[float]]:
-    backend = os.getenv("EMBEDDING_BACKEND", "local")
-    if backend != "hash":
+    if settings.EMBEDDING_BACKEND != "hash":
         try:
             return _minilm(texts)
-        except Exception:
+        except ImportError:
             pass
+        except Exception as e:
+            print(f"embed: MiniLM failed ({e}); falling back to hash vectors", file=sys.stderr)
     return [_hash_vec(t) for t in texts]
 
 

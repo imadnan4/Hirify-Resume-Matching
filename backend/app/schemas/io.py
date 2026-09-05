@@ -1,5 +1,9 @@
 """Pydantic I/O. Mirrors docs/BACKEND_API.md examples."""
+from typing import Annotated
+
 from pydantic import BaseModel, Field
+
+ScoreValue = Annotated[float, Field(ge=0, le=100)]
 
 
 class JobCreate(BaseModel):
@@ -19,8 +23,8 @@ class EvidenceItem(BaseModel):
 
 
 class ScoreOut(BaseModel):
-    overall: float
-    subs: dict[str, float] = Field(default_factory=dict)
+    overall: ScoreValue
+    subs: dict[str, ScoreValue] = Field(default_factory=dict)
     evidence: list[EvidenceItem] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
 

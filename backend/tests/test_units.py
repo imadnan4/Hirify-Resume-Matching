@@ -6,6 +6,7 @@ from app.services.scoring import apply_rubric
 def test_chunk_jd_by_requirement():
     chunks = chunk_jd("Title\nREQ-1: 2+ yrs FastAPI\nREQ-2: Postgres")
     assert [c["requirement_id"] for c in chunks] == ["REQ-1", "REQ-2"]
+    assert chunks[0]["text"] == "2+ yrs FastAPI"
 
 
 def test_chunk_cv_sections():

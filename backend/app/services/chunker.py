@@ -1,7 +1,7 @@
 """Chunking: JD by requirement bullets, CV by sections. ~400-600 tokens via chars."""
 import re
 
-REQ_RE = re.compile(r"^(?:REQ-\d+|[-*•]\s+|\d+[.)]\s+)(.+)", re.M)
+REQ_RE = re.compile(r"^(?:REQ-\d+\s*[:\-–.]?\s*|[-*•]\s+|\d+[.)]\s+)(.+)", re.M)
 SECTION_RE = re.compile(r"^(experience|projects?|education|skills|summary|work history)[:\s]*$", re.M | re.I)
 
 

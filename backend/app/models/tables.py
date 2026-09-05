@@ -34,7 +34,9 @@ class Candidate(Base):
 class Chunk(Base):
     __tablename__ = "chunks"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    job_id: Mapped[str] = mapped_column(String(12), index=True)
+    job_id: Mapped[str] = mapped_column(String(12), ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
+    # Mixed namespace: candidate row ids plus "job:<id>" requirement markers,
+    # so no FK here by design; rows are rewritten on every screen run.
     candidate_id: Mapped[str] = mapped_column(String(64), index=True, default="")
     requirement_id: Mapped[str] = mapped_column(String(32), default="")
     section: Mapped[str] = mapped_column(String(64), default="")
@@ -46,8 +48,8 @@ class Chunk(Base):
 class Score(Base):
     __tablename__ = "scores"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    job_id: Mapped[str] = mapped_column(String(12), index=True)
-    candidate_id: Mapped[str] = mapped_column(String(12), index=True)
+    job_id: Mapped[str] = mapped_column(String(12), ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
+    candidate_id: Mapped[str] = mapped_column(String(12), ForeignKey("candidates.id", ondelete="CASCADE"), index=True)
     overall: Mapped[float] = mapped_column(Float)
     subs: Mapped[dict] = mapped_column(JSON().with_variant(JSONB, "postgresql"), default=dict)
     evidence: Mapped[list] = mapped_column(JSON().with_variant(JSONB, "postgresql"), default=list)
@@ -56,14 +58,14 @@ class Score(Base):
 class Tag(Base):
     __tablename__ = "tags"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    job_id: Mapped[str] = mapped_column(String(12), index=True)
-    candidate_id: Mapped[str] = mapped_column(String(12), index=True)
+    job_id: Mapped[str] = mapped_column(String(12), ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
+    candidate_id: Mapped[str] = mapped_column(String(12), ForeignKey("candidates.id", ondelete="CASCADE"), index=True)
     tag: Mapped[str] = mapped_column(String(64), index=True)
 
 
 class InterviewStub(Base):
     __tablename__ = "interviews_stub"
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    job_id: Mapped[str] = mapped_column(String(12), index=True)
-    candidate_id: Mapped[str] = mapped_column(String(12), index=True)
+    job_id: Mapped[str] = mapped_column(String(12), ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
+    candidate_id: Mapped[str] = mapped_column(String(12), ForeignKey("candidates.id", ondelete="CASCADE"), index=True)
     slot: Mapped[str] = mapped_column(String(120))
