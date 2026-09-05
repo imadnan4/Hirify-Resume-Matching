@@ -1,0 +1,30 @@
+flowchart LR
+  subgraph UI["frontend (Vite React+Tailwind, Netlify)"]
+    U1[Upload JD + CVs]
+    U2[Ranking table]
+    U3[Candidate evidence]
+    U4[Eval results]
+  end
+  subgraph API["backend (FastAPI, Heroku)"]
+    A1[REST: jobs / upload / screen / ranking / eval]
+    A2[Agent loop: tools-first + JSON fallback]
+    T1[(score_candidate)]
+    T2[(tag_candidate)]
+    T3[(schedule_interview_stub)]
+  end
+  subgraph DATA["Neon Postgres + pgvector (prod)<br/>pgvector:pg16 in Compose (local)"]
+    D1[(jobs / candidates)]
+    D2[(chunks vector 384)]
+    D3[(scores / tags / interviews_stub)]
+  end
+  subgraph EXT["External"]
+    QW[Qwen3.8-Max via xkiro OpenAI-compat]
+    EM[local MiniLM embed]
+  end
+  U1 --> A1 --> A2 --> QW
+  A1 --> D1
+  A2 --> T1 & T2 & T3
+  T1 & T2 --> D3
+  A2 --> EM --> D2
+  D2 --> A2
+  A1 --> U2 & U3 & U4
