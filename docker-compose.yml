@@ -1,0 +1,27 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: hirify
+      POSTGRES_PASSWORD: hirify
+      POSTGRES_DB: hirify
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg://hirify:hirify@db:5432/hirify
+      XKIRO_API_KEY: ${XKIRO_API_KEY:-}
+      XKIRO_BASE_URL: ${XKIRO_BASE_URL:-https://api.xkiro.com/v1}
+      QWEN_MODEL: ${QWEN_MODEL:-qwen/qwen3.8-max:free}
+      EMBEDDING_BACKEND: ${EMBEDDING_BACKEND:-local}
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+volumes:
+  pgdata:
